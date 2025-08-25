@@ -69,6 +69,64 @@ class BankGame:
         except Exception:
             pass
 
+    # --- 支出：UI 綁定與列表更新 ---
+    def update_expenses_ui(self):
+        try:
+            if hasattr(self, 'expense_listbox'):
+                self.expense_listbox.delete(0, tk.END)
+                for exp in getattr(self.data, 'expenses', []):
+                    name = exp.get('name', '支出')
+                    amt = float(exp.get('amount', 0.0))
+                    freq = exp.get('frequency', 'daily')
+                    next_due = exp.get('next_due_day', '-')
+                    self.expense_listbox.insert(tk.END, f"{name} | ${amt:.2f} | {freq} | 下次第{next_due}天")
+        except Exception:
+            pass
+
+    def add_expense_from_ui(self):
+        try:
+            if not (hasattr(self, 'expense_name_var') and hasattr(self, 'expense_amount_var') and hasattr(self, 'expense_freq_var')):
+                return
+            name = self.expense_name_var.get().strip() or '支出'
+            amt_str = self.expense_amount_var.get().strip()
+            try:
+                amount = max(0.0, float(amt_str))
+            except Exception:
+                self.show_event_message("金額格式錯誤！")
+                return
+            freq = self.expense_freq_var.get().strip() or 'daily'
+            interval = {'daily':1,'weekly':7,'monthly':30}.get(freq,1)
+            today = self.data.days
+            self.data.expenses.append({
+                'name': name,
+                'amount': amount,
+                'frequency': freq,
+                'next_due_day': today + 1 + interval,  # 下一個週期的日子
+            })
+            self.log_transaction(f"新增支出：{name} ${amount:.2f} ({freq})")
+            self.update_expenses_ui()
+            self._pending_save = True
+            self.schedule_persist()
+        except Exception as e:
+            self.debug_log(f"add_expense_from_ui error: {e}")
+
+    def delete_expense_from_ui(self):
+        try:
+            if not hasattr(self, 'expense_listbox'):
+                return
+            sel = self.expense_listbox.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            if 0 <= idx < len(self.data.expenses):
+                exp = self.data.expenses.pop(idx)
+                self.log_transaction(f"刪除支出：{exp.get('name','支出')} ${float(exp.get('amount',0.0)):.2f}")
+                self.update_expenses_ui()
+                self._pending_save = True
+                self.schedule_persist()
+        except Exception as e:
+            self.debug_log(f"delete_expense_from_ui error: {e}")
+
     def _run_task(self, name, func):
         t0 = time.perf_counter()
         try:
@@ -94,6 +152,10 @@ class BankGame:
                 stock = self.data.stocks[code]
                 lbl.config(text=f"配息：每股${stock.get('dividend_per_share', 0)}，下次配息第{stock.get('next_dividend_day', 30)}天")
         # 不再呼叫 self.update_stock_info_label()
+        # 更新上班模式 UI
+        self.update_job_ui()
+        # 更新支出清單 UI
+        self.update_expenses_ui()
         self.update_charts()
         self.update_achievements_list()
         # 將頻繁 I/O 轉為延遲合併寫入
@@ -221,6 +283,57 @@ class BankGame:
                         self.data.cash = 0
                         self.data.balance = 0
                         self.log_transaction(f"現金與存款皆不足，已扣除所有剩餘金額 ${total:.2f} 作為貸款利息")
+                # 上班模式：每日發薪與扣稅
+                try:
+                    if getattr(self.data, 'job', None):
+                        job = self.data.job
+                        gross = float(job.get('salary_per_day', 0.0))
+                        tax_rate = float(job.get('tax_rate', 0.0))
+                        tax = max(0.0, round(gross * tax_rate, 2))
+                        net = round(gross - tax, 2)
+                        if net > 0:
+                            self.data.cash += net
+                            self.data.income_history.append({
+                                'day': self.data.days + 1,
+                                'type': 'salary',
+                                'gross': gross,
+                                'tax': tax,
+                                'net': net,
+                            })
+                            self.log_transaction(f"薪資入帳：毛薪 ${gross:.2f}，扣稅 ${tax:.2f}，實領 ${net:.2f}")
+                except Exception as e:
+                    self.debug_log(f"salary payout error: {e}")
+                # 支出：到期扣款
+                try:
+                    freq_days = {'daily': 1, 'weekly': 7, 'monthly': 30}
+                    today = self.data.days + 1
+                    for exp in list(getattr(self.data, 'expenses', [])):
+                        due = int(exp.get('next_due_day', today))
+                        if due <= today:
+                            amount = float(exp.get('amount', 0.0))
+                            paid = 0.0
+                            # 先扣現金，再扣存款
+                            if self.data.cash >= amount:
+                                self.data.cash -= amount
+                                paid = amount
+                            else:
+                                paid = self.data.cash
+                                self.data.cash = 0
+                                need = amount - paid
+                                if self.data.balance >= need:
+                                    self.data.balance -= need
+                                    paid = amount
+                                else:
+                                    # 存款也不足，只能扣到 0，留下未付不累積負債（MVP 簡化）
+                                    paid += self.data.balance
+                                    self.data.balance = 0
+                            self.data.expense_history.append({'day': today, 'name': exp.get('name','支出'), 'amount': paid})
+                            self.log_transaction(f"支出扣款：{exp.get('name','支出')} ${paid:.2f}")
+                            # 安排下次到期
+                            interval = freq_days.get(exp.get('frequency','daily'), 1)
+                            exp['next_due_day'] = today + interval
+                except Exception as e:
+                    self.debug_log(f"expense deduction error: {e}")
                 self.data.days += 1
                 for code, stock in self.data.stocks.items():
                     if self.data.days >= stock.get('next_dividend_day', 30):
@@ -449,6 +562,71 @@ class BankGame:
                     self.update_display()
                 else:
                     self.log_transaction("還款失敗：現金不足！")
+        else:
+            self.log_transaction("還款失敗：現金不足！")
+
+    # --- 上班模式：工作選擇與升職 ---
+    def ui_select_job(self):
+        try:
+            if hasattr(self, 'job_select_var'):
+                name = self.job_select_var.get().strip()
+                if name:
+                    self.select_job(name)
+        except Exception as e:
+            self.debug_log(f"ui_select_job error: {e}")
+
+    def select_job(self, name):
+        cat = getattr(self.data, 'jobs_catalog', {})
+        if name not in cat:
+            self.show_event_message("無效的職業！")
+            return
+        info = cat[name]
+        self.data.job = {
+            'name': name,
+            'level': 1,
+            'salary_per_day': float(info.get('base_salary_per_day', 0.0)),
+            'tax_rate': float(info.get('tax_rate', 0.0)),
+            'next_promotion_day': self.data.days + 7,
+        }
+        self.log_transaction(f"已選擇工作：{name}，日薪 ${self.data.job['salary_per_day']:.2f}")
+        self.update_job_ui()
+        self._pending_save = True
+        self.schedule_persist()
+
+    def promote_job(self):
+        job = getattr(self.data, 'job', None)
+        if not job:
+            self.show_event_message("尚未選擇工作！")
+            return
+        if self.data.days < job.get('next_promotion_day', 0):
+            self.show_event_message("還沒到可升職的日子！")
+            return
+        job['level'] = int(job.get('level', 1)) + 1
+        job['salary_per_day'] = round(float(job.get('salary_per_day', 0.0)) * 1.2, 2)
+        job['next_promotion_day'] = self.data.days + 14
+        self.log_transaction(f"升職成功！目前等級 {job['level']}，新日薪 ${job['salary_per_day']:.2f}")
+        self.update_job_ui()
+        self._pending_save = True
+        self.schedule_persist()
+
+    def update_job_ui(self):
+        try:
+            if hasattr(self, 'job_labels'):
+                job = getattr(self.data, 'job', None)
+                if job:
+                    self.job_labels['name'].config(text=f"職稱：{job.get('name','-')}")
+                    self.job_labels['level'].config(text=f"等級：{job.get('level',1)}")
+                    self.job_labels['salary'].config(text=f"日薪：${job.get('salary_per_day',0.0):.2f}")
+                    self.job_labels['tax'].config(text=f"稅率：{job.get('tax_rate',0.0)*100:.1f}%")
+                    self.job_labels['next'].config(text=f"下次升職日：第 {job.get('next_promotion_day','-')} 天")
+                else:
+                    self.job_labels['name'].config(text="職稱：未就業")
+                    self.job_labels['level'].config(text="等級：-")
+                    self.job_labels['salary'].config(text="日薪：$0.00")
+                    self.job_labels['tax'].config(text="稅率：0.0%")
+                    self.job_labels['next'].config(text="下次升職日：-")
+        except Exception:
+            pass
 
     # --- 成就、事件、排行榜 ---
     def check_achievements(self):

@@ -245,6 +245,72 @@ def create_main_tabs(root, game):
     history_frame.pack(fill=tk.X, pady=10, padx=10)
     game.history_text = tk.Text(history_frame, height=8, width=60, font=FONT, state='disabled')
     game.history_text.pack(fill=tk.BOTH)
+    # --- 生活分頁（工作/之後可擴充支出/基金） ---
+    life_tab = ttk.Frame(tab_control)
+    tab_control.add(life_tab, text="👤 生活")
+    # 工作區塊
+    job_frame = ttk.LabelFrame(life_tab, text="工作", padding="10")
+    job_frame.pack(fill=tk.X, pady=10, padx=10)
+    # 顯示目前工作資訊
+    info_row = ttk.Frame(job_frame)
+    info_row.pack(fill=tk.X, pady=5)
+    job_name_lbl = ttk.Label(info_row, text="職稱：未就業", font=FONT)
+    job_name_lbl.grid(row=0, column=0, padx=6, pady=2, sticky='w')
+    job_level_lbl = ttk.Label(info_row, text="等級：-", font=FONT)
+    job_level_lbl.grid(row=0, column=1, padx=6, pady=2, sticky='w')
+    job_salary_lbl = ttk.Label(info_row, text="日薪：$0.00", font=FONT)
+    job_salary_lbl.grid(row=1, column=0, padx=6, pady=2, sticky='w')
+    job_tax_lbl = ttk.Label(info_row, text="稅率：0.0%", font=FONT)
+    job_tax_lbl.grid(row=1, column=1, padx=6, pady=2, sticky='w')
+    job_next_lbl = ttk.Label(info_row, text="下次升職日：-", font=FONT)
+    job_next_lbl.grid(row=2, column=0, padx=6, pady=2, sticky='w')
+    # 綁定到 game 以便更新
+    game.job_labels = {
+        'name': job_name_lbl,
+        'level': job_level_lbl,
+        'salary': job_salary_lbl,
+        'tax': job_tax_lbl,
+        'next': job_next_lbl,
+    }
+    # 選擇工作
+    select_row = ttk.Frame(job_frame)
+    select_row.pack(fill=tk.X, pady=5)
+    ttk.Label(select_row, text="選擇職業：", font=FONT).pack(side=tk.LEFT, padx=6)
+    job_names = list(getattr(game.data, 'jobs_catalog', {}).keys())
+    game.job_select_var = tk.StringVar(value=(job_names[0] if job_names else ""))
+    job_combo = ttk.Combobox(select_row, textvariable=game.job_select_var, values=job_names, font=FONT, state='readonly', width=16)
+    job_combo.pack(side=tk.LEFT, padx=6)
+    ttk.Button(select_row, text="就職", command=game.ui_select_job, width=10).pack(side=tk.LEFT, padx=6)
+    ttk.Button(select_row, text="申請升職", command=game.promote_job, width=12).pack(side=tk.LEFT, padx=6)
+    # 支出區塊
+    expense_frame = ttk.LabelFrame(life_tab, text="支出", padding="10")
+    expense_frame.pack(fill=tk.BOTH, pady=10, padx=10)
+    input_row = ttk.Frame(expense_frame)
+    input_row.pack(fill=tk.X, pady=5)
+    ttk.Label(input_row, text="名稱：", font=FONT).pack(side=tk.LEFT, padx=6)
+    game.expense_name_var = tk.StringVar()
+    name_entry = ttk.Entry(input_row, textvariable=game.expense_name_var, width=12, font=FONT)
+    name_entry.pack(side=tk.LEFT)
+    ttk.Label(input_row, text="金額：", font=FONT).pack(side=tk.LEFT, padx=6)
+    game.expense_amount_var = tk.StringVar()
+    amount_entry = ttk.Entry(input_row, textvariable=game.expense_amount_var, width=10, font=FONT)
+    amount_entry.pack(side=tk.LEFT)
+    ttk.Label(input_row, text="頻率：", font=FONT).pack(side=tk.LEFT, padx=6)
+    game.expense_freq_var = tk.StringVar(value='daily')
+    freq_combo = ttk.Combobox(input_row, textvariable=game.expense_freq_var, values=['daily','weekly','monthly'], state='readonly', width=10, font=FONT)
+    freq_combo.pack(side=tk.LEFT)
+    ttk.Button(input_row, text="新增支出", command=game.add_expense_from_ui, width=12).pack(side=tk.LEFT, padx=8)
+    # 支出列表
+    list_row = ttk.Frame(expense_frame)
+    list_row.pack(fill=tk.BOTH, expand=True, pady=5)
+    game.expense_listbox = tk.Listbox(list_row, height=6, font=FONT)
+    game.expense_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    sb = ttk.Scrollbar(list_row, orient=tk.VERTICAL, command=game.expense_listbox.yview)
+    sb.pack(side=tk.RIGHT, fill=tk.Y)
+    game.expense_listbox.config(yscrollcommand=sb.set)
+    btn_row = ttk.Frame(expense_frame)
+    btn_row.pack(fill=tk.X, pady=5)
+    ttk.Button(btn_row, text="刪除選取支出", command=game.delete_expense_from_ui, width=16).pack(side=tk.LEFT, padx=6)
     # --- 股票圖表分頁（多圖表+買賣操作） ---
     chart_tab = ttk.Frame(tab_control)
     tab_control.add(chart_tab, text="📈 股票")

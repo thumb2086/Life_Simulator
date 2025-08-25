@@ -37,6 +37,23 @@ class GameData:
         self.days = 0
         if is_reborn:
             self.reborn_count += 1
+        # --- Work Mode (上班模式) 預設欄位 ---
+        # 當前工作：name, level, salary_per_day, tax_rate, next_promotion_day
+        self.job = None
+        # 收入歷史：[{day, type:'salary', gross, tax, net}]
+        self.income_history = []
+        # 職業目錄（可於 UI 選擇），金額單位：遊戲幣/日
+        self.jobs_catalog = {
+            '實習生': {'base_salary_per_day': 50.0, 'tax_rate': 0.05},
+            '工程師': {'base_salary_per_day': 120.0, 'tax_rate': 0.10},
+            '資深工程師': {'base_salary_per_day': 200.0, 'tax_rate': 0.12},
+            '經理': {'base_salary_per_day': 300.0, 'tax_rate': 0.15},
+        }
+        # --- Expenses (支出) 預設欄位 ---
+        # 支出列表：[{name, amount, frequency:'daily'|'weekly'|'monthly', next_due_day:int}]
+        self.expenses = []
+        # 支出歷史：[{day, name, amount}]
+        self.expense_history = []
 
     def save(self, file_path, show_error=None):
         import json
@@ -97,6 +114,24 @@ class GameData:
                 self.btc_mining_rate_per_kh = 0.001
             if not hasattr(self, 'btc_price_volatility_sigma'):
                 self.btc_price_volatility_sigma = 0.003
+
+            # --- 補齊 Work Mode 欄位 ---
+            if not hasattr(self, 'job'):
+                self.job = None
+            if not hasattr(self, 'income_history'):
+                self.income_history = []
+            if not hasattr(self, 'jobs_catalog'):
+                self.jobs_catalog = {
+                    '實習生': {'base_salary_per_day': 50.0, 'tax_rate': 0.05},
+                    '工程師': {'base_salary_per_day': 120.0, 'tax_rate': 0.10},
+                    '資深工程師': {'base_salary_per_day': 200.0, 'tax_rate': 0.12},
+                    '經理': {'base_salary_per_day': 300.0, 'tax_rate': 0.15},
+                }
+            # --- 補齊 Expenses 欄位 ---
+            if not hasattr(self, 'expenses'):
+                self.expenses = []
+            if not hasattr(self, 'expense_history'):
+                self.expense_history = []
 
             if hasattr(self, 'achievements_manager'):
                 self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器
