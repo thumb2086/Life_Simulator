@@ -433,6 +433,40 @@ def create_main_tabs(root, game):
     fund_combo.bind('<<ComboboxSelected>>', on_fund_selected)
     # 初始刷新
     on_fund_selected()
+    # --- 報表分頁 ---
+    report_tab = ttk.Frame(tab_control)
+    tab_control.add(report_tab, text="📑 報表")
+    # 上方：摘要區
+    report_summary = ttk.LabelFrame(report_tab, text="摘要", padding="10")
+    report_summary.pack(fill=tk.X, pady=10, padx=10)
+    game.report_income_summary_label = ttk.Label(report_summary, text="收入：今日 $0.00｜近7天 $0.00｜近30天 $0.00", font=FONT)
+    game.report_income_summary_label.grid(row=0, column=0, padx=6, pady=2, sticky='w')
+    game.report_expense_summary_label = ttk.Label(report_summary, text="支出：今日 $0.00｜近7天 $0.00｜近30天 $0.00", font=FONT)
+    game.report_expense_summary_label.grid(row=1, column=0, padx=6, pady=2, sticky='w')
+    game.report_net_summary_label = ttk.Label(report_summary, text="淨額：今日 $0.00｜近7天 $0.00｜近30天 $0.00", font=FONT)
+    game.report_net_summary_label.grid(row=2, column=0, padx=6, pady=2, sticky='w')
+    # 下方：趨勢圖
+    report_chart_frame = ttk.LabelFrame(report_tab, text="收入/支出趨勢（每日）", padding="10")
+    report_chart_frame.pack(fill=tk.BOTH, expand=True, pady=10, padx=10)
+    game.report_fig, game.report_ax = plt.subplots(figsize=(6, 3))
+    game.report_canvas = FigureCanvasTkAgg(game.report_fig, master=report_chart_frame)
+    game.report_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    # 初始化圖表樣式
+    try:
+        ax = game.report_ax
+        ax.set_title("收入 vs 支出（每日）")
+        ax.set_xlabel("天數")
+        ax.set_ylabel("金額")
+        ax.grid(True, linestyle='--', alpha=0.3)
+        game.report_fig.tight_layout()
+    except Exception:
+        pass
+    # 初始刷新一次
+    try:
+        if hasattr(game, 'update_report_ui'):
+            game.update_report_ui()
+    except Exception:
+        pass
     # --- 商店分頁 ---
     store_tab = ttk.Frame(tab_control)
     tab_control.add(store_tab, text="🛒 商店")

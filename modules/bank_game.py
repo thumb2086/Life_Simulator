@@ -214,34 +214,14 @@ class BankGame:
                 {'name': '手機費', 'amount': 20.0, 'frequency': 'monthly'},
             ]
             today = self.data.days
-<<<<<<< HEAD
-            freq_days = self.FREQ_DAYS
-=======
-            freq_days = {'daily': 1, 'weekly': 7, 'monthly': 30}
->>>>>>> 75b13a463e62052543f2694e4a61a77e724f3afb
             names_existing = {e.get('name') for e in getattr(self.data, 'expenses', [])}
             for d in defaults:
                 if d['name'] in names_existing:
                     continue
-<<<<<<< HEAD
                 self._append_expense(d['name'], d['amount'], d['frequency'], today)
                 self.log_transaction(f"加入固定支出：{d['name']} ${d['amount']:.2f} ({d['frequency']})")
             self.data.expense_defaults_added = True
             self._refresh_and_persist()
-=======
-                interval = freq_days.get(d['frequency'], 30)
-                self.data.expenses.append({
-                    'name': d['name'],
-                    'amount': float(d['amount']),
-                    'frequency': d['frequency'],
-                    'next_due_day': today + 1 + interval,
-                })
-                self.log_transaction(f"加入固定支出：{d['name']} ${d['amount']:.2f} ({d['frequency']})")
-            self.data.expense_defaults_added = True
-            self.update_expenses_ui()
-            self._pending_save = True
-            self.schedule_persist()
->>>>>>> 75b13a463e62052543f2694e4a61a77e724f3afb
         except Exception as e:
             self.debug_log(f"ensure_default_expenses error: {e}")
 
@@ -250,34 +230,16 @@ class BankGame:
             # 若已存在相同名稱的支出，則不重複新增
             for e in getattr(self.data, 'expenses', []):
                 if e.get('name') == name:
-<<<<<<< HEAD
                     self._notify(f"已訂閱：{name}")
                     return False
             self._append_expense(name, amount, frequency)
             self.log_transaction(f"訂閱服務：{name} ${amount:.2f} ({frequency})")
             self._refresh_and_persist(update_store=True)
-=======
-                    self.show_event_message(f"已訂閱：{name}")
-                    return False
-            today = self.data.days
-            interval = {'daily':1,'weekly':7,'monthly':30}.get(frequency, 30)
-            self.data.expenses.append({
-                'name': name,
-                'amount': float(amount),
-                'frequency': frequency,
-                'next_due_day': today + 1 + interval,
-            })
-            self.log_transaction(f"訂閱服務：{name} ${amount:.2f} ({frequency})")
-            self.update_expenses_ui()
-            self._pending_save = True
-            self.schedule_persist()
->>>>>>> 75b13a463e62052543f2694e4a61a77e724f3afb
             return True
         except Exception as e:
             self.debug_log(f"subscribe_service error: {e}")
             return False
 
-<<<<<<< HEAD
     def cancel_subscription(self, name):
         try:
             # 只允許取消商店中的訂閱類型
@@ -299,92 +261,11 @@ class BankGame:
             return False
 
     def cancel_subscription_from_ui(self):
-=======
-    def buy_store_good(self, name, price):
         try:
-            price = float(price)
-            if self.data.cash < price:
-                self.log_transaction(f"購買失敗（現金不足）：{name} 需要 ${price:.2f}")
-                return False
-            self.data.cash -= price
-            inv = getattr(self.data, 'inventory', [])
-            inv.append(name)
-            self.data.inventory = inv
-            self.log_transaction(f"購買物品：{name} 花費 ${price:.2f}")
-            self.update_store_ui()
-            self.update_display()
-            self._pending_save = True
-            self.schedule_persist()
-            return True
-        except Exception as e:
-            self.debug_log(f"buy_store_good error: {e}")
-            return False
-
-    # --- 商店：UI 綁定 ---
-    def update_store_ui(self):
-        try:
-            # 物品清單
-            if hasattr(self, 'store_goods_list') and isinstance(self.data.store_catalog, dict):
-                self.store_goods_list.delete(0, tk.END)
-                for name, item in self.data.store_catalog.get('goods', {}).items():
-                    self.store_goods_list.insert(tk.END, f"{name} | ${float(item.get('price',0.0)):.2f}")
-            # 訂閱清單
-            if hasattr(self, 'store_subs_list') and isinstance(self.data.store_catalog, dict):
-                self.store_subs_list.delete(0, tk.END)
-                for name, item in self.data.store_catalog.get('subscriptions', {}).items():
-                    amt = float(item.get('amount', 0.0))
-                    freq = item.get('frequency', 'monthly')
-                    self.store_subs_list.insert(tk.END, f"{name} | ${amt:.2f}/{freq}")
-            # 物品欄
-            if hasattr(self, 'inventory_list'):
-                self.inventory_list.delete(0, tk.END)
-                for it in getattr(self.data, 'inventory', []):
-                    self.inventory_list.insert(tk.END, f"{it}")
-        except Exception:
-            pass
-
-    def subscribe_selected_from_ui(self):
-        try:
-            if not hasattr(self, 'store_subs_list'):
-                return
-            sel = self.store_subs_list.curselection()
-            if not sel:
-                return
-            idx = sel[0]
-            names = list(self.data.store_catalog.get('subscriptions', {}).keys())
-            if 0 <= idx < len(names):
-                name = names[idx]
-                cfg = self.data.store_catalog['subscriptions'][name]
-                self.subscribe_service(name, cfg.get('amount', 0.0), cfg.get('frequency', 'monthly'))
-        except Exception as e:
-            self.debug_log(f"subscribe_selected_from_ui error: {e}")
-
-    def buy_selected_good_from_ui(self):
-        try:
-            if not hasattr(self, 'store_goods_list'):
-                return
-            sel = self.store_goods_list.curselection()
-            if not sel:
-                return
-            idx = sel[0]
-            names = list(self.data.store_catalog.get('goods', {}).keys())
-            if 0 <= idx < len(names):
-                name = names[idx]
-                price = self.data.store_catalog['goods'][name].get('price', 0.0)
-                self.buy_store_good(name, price)
-        except Exception as e:
-            self.debug_log(f"buy_selected_good_from_ui error: {e}")
-
-    def delete_expense_from_ui(self):
->>>>>>> 75b13a463e62052543f2694e4a61a77e724f3afb
-        try:
-            if not hasattr(self, 'expense_listbox'):
-                return
-            sel = self.expense_listbox.curselection()
-            if not sel:
+            idx = self._get_selected_index('expense_listbox')
+            if idx is None:
                 self._notify("請先選擇要取消的訂閱！")
                 return
-            idx = sel[0]
             if 0 <= idx < len(self.data.expenses):
                 name = self.data.expenses[idx].get('name', '')
                 self.cancel_subscription(name)
@@ -507,6 +388,11 @@ class BankGame:
         self.update_funds_ui()
         # 更新商店/物品欄 UI
         self.update_store_ui()
+        # 更新報表 UI
+        try:
+            self.update_report_ui()
+        except Exception:
+            pass
         self.update_charts()
         self.update_achievements_list()
         # 將頻繁 I/O 轉為延遲合併寫入
@@ -515,6 +401,84 @@ class BankGame:
         if hasattr(self, 'savefile'):
             self._pending_save = True
         self.schedule_persist()
+
+    def update_report_ui(self):
+        try:
+            incomes = getattr(self.data, 'income_history', []) or []
+            expenses = getattr(self.data, 'expense_history', []) or []
+            today = getattr(self.data, 'days', 0)
+
+            # 彙總每日收入/支出
+            inc_by_day = {}
+            for r in incomes:
+                try:
+                    d = int(r.get('day', 0))
+                    inc_by_day[d] = inc_by_day.get(d, 0.0) + float(r.get('net', 0.0))
+                except Exception:
+                    pass
+            exp_by_day = {}
+            for r in expenses:
+                try:
+                    d = int(r.get('day', 0))
+                    exp_by_day[d] = exp_by_day.get(d, 0.0) + float(r.get('amount', 0.0))
+                except Exception:
+                    pass
+
+            days = sorted(set(list(inc_by_day.keys()) + list(exp_by_day.keys())))
+
+            def sum_range(dct, start_day, end_day):
+                total = 0.0
+                for d, v in dct.items():
+                    if start_day <= d <= end_day:
+                        total += float(v)
+                return total
+
+            inc_today = sum_range(inc_by_day, today, today)
+            exp_today = sum_range(exp_by_day, today, today)
+            inc_7 = sum_range(inc_by_day, max(0, today - 6), today)
+            exp_7 = sum_range(exp_by_day, max(0, today - 6), today)
+            inc_30 = sum_range(inc_by_day, max(0, today - 29), today)
+            exp_30 = sum_range(exp_by_day, max(0, today - 29), today)
+
+            # 更新摘要標籤
+            if hasattr(self, 'report_income_summary_label') and self.report_income_summary_label is not None:
+                self.report_income_summary_label.config(
+                    text=f"收入：今日 ${inc_today:.2f}｜近7天 ${inc_7:.2f}｜近30天 ${inc_30:.2f}"
+                )
+            if hasattr(self, 'report_expense_summary_label') and self.report_expense_summary_label is not None:
+                self.report_expense_summary_label.config(
+                    text=f"支出：今日 ${exp_today:.2f}｜近7天 ${exp_7:.2f}｜近30天 ${exp_30:.2f}"
+                )
+            if hasattr(self, 'report_net_summary_label') and self.report_net_summary_label is not None:
+                net_today = inc_today - exp_today
+                net_7 = inc_7 - exp_7
+                net_30 = inc_30 - exp_30
+                self.report_net_summary_label.config(
+                    text=f"淨額：今日 ${net_today:.2f}｜近7天 ${net_7:.2f}｜近30天 ${net_30:.2f}"
+                )
+
+            # 畫每日趨勢
+            if hasattr(self, 'report_ax') and hasattr(self, 'report_canvas') and self.report_ax is not None:
+                ax = self.report_ax
+                ax.clear()
+                ax.set_facecolor('white')
+                if days:
+                    inc_series = [inc_by_day.get(d, 0.0) for d in days]
+                    exp_series = [exp_by_day.get(d, 0.0) for d in days]
+                    ax.plot(days, inc_series, label='收入', color='green', linewidth=2)
+                    ax.plot(days, exp_series, label='支出', color='red', linewidth=2)
+                ax.set_title("收入 vs 支出（每日）")
+                ax.set_xlabel("天數")
+                ax.set_ylabel("金額")
+                ax.grid(True, linestyle='--', alpha=0.3)
+                ax.legend(loc='upper left')
+                try:
+                    self.report_fig.tight_layout()
+                except Exception:
+                    pass
+                self.report_canvas.draw()
+        except Exception as e:
+            self.debug_log(f"update_report_ui error: {e}")
 
     def update_charts(self):
         color_list = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'cyan', 'magenta', 'gray']
