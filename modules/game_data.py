@@ -54,6 +54,21 @@ class GameData:
         self.expenses = []
         # 支出歷史：[{day, name, amount}]
         self.expense_history = []
+        # 是否已加入預設固定支出（公用事業與基本訂閱）
+        self.expense_defaults_added = False
+        # 商店：可購買的項目與玩家物品清單
+        self.store_catalog = {
+            'subscriptions': {
+                'Netflix 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 15.0, 'frequency': 'monthly'},
+                'Spotify 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 10.0, 'frequency': 'monthly'},
+                '健身房會員': {'price': 0.0, 'type': 'subscription', 'amount': 30.0, 'frequency': 'monthly'},
+            },
+            'goods': {
+                '筆電': {'price': 800.0, 'type': 'goods'},
+                '自行車': {'price': 150.0, 'type': 'goods'},
+            }
+        }
+        self.inventory = []
         # --- Funds/ETF 預設欄位 ---
         # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
         self.funds_catalog = {
@@ -159,6 +174,23 @@ class GameData:
                 self.expenses = []
             if not hasattr(self, 'expense_history'):
                 self.expense_history = []
+            if not hasattr(self, 'expense_defaults_added'):
+                self.expense_defaults_added = False
+            # --- 補齊 商店 與 物品欄 ---
+            if not hasattr(self, 'store_catalog'):
+                self.store_catalog = {
+                    'subscriptions': {
+                        'Netflix 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 15.0, 'frequency': 'monthly'},
+                        'Spotify 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 10.0, 'frequency': 'monthly'},
+                        '健身房會員': {'price': 0.0, 'type': 'subscription', 'amount': 30.0, 'frequency': 'monthly'},
+                    },
+                    'goods': {
+                        '筆電': {'price': 800.0, 'type': 'goods'},
+                        '自行車': {'price': 150.0, 'type': 'goods'},
+                    }
+                }
+            if not hasattr(self, 'inventory'):
+                self.inventory = []
             # --- 補齊 Funds/ETF 欄位 ---
             if not hasattr(self, 'funds_catalog'):
                 self.funds_catalog = {

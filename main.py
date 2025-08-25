@@ -1,4 +1,13 @@
 import tkinter as tk
+import os
+import sys
+
+# 確保可以匯入 modules/ 內的檔案
+BASE_DIR = os.path.dirname(__file__)
+MODULE_DIR = os.path.join(BASE_DIR, 'modules')
+if MODULE_DIR not in sys.path:
+    sys.path.insert(0, MODULE_DIR)
+
 from bank_game import BankGame
 from game_data import GameData
 
