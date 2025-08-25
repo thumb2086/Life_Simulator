@@ -1,0 +1,179 @@
+{
+  "reborn_count": 0,
+  "balance": 0,
+  "cash": 1000,
+  "loan": 0,
+  "deposit_interest_rate": 0.01,
+  "loan_interest_rate": 0.005,
+  "stocks": {
+    "TSMC": {
+      "name": "台積電",
+      "industry": "科技業",
+      "price": 98.05,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        100,
+        98.05
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "HONHAI": {
+      "name": "鴻海",
+      "industry": "科技業",
+      "price": 79.44,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        80,
+        79.44
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "MTK": {
+      "name": "聯發科",
+      "industry": "科技業",
+      "price": 119.55,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        120,
+        119.55
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "MINING": {
+      "name": "挖礦公司",
+      "industry": "一級產業",
+      "price": 60.57,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        60,
+        60.57
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 2,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "FARM": {
+      "name": "農業公司",
+      "industry": "一級產業",
+      "price": 50.15,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        50,
+        50.15
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1.5,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "FOREST": {
+      "name": "林業公司",
+      "industry": "一級產業",
+      "price": 54.84,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        55,
+        54.84
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1.2,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "RETAIL": {
+      "name": "零售連鎖",
+      "industry": "服務業",
+      "price": 69.93,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        70,
+        69.93
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "RESTAURANT": {
+      "name": "餐飲集團",
+      "industry": "服務業",
+      "price": 64.96,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        65,
+        64.96
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0.8,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "TRAVEL": {
+      "name": "旅遊公司",
+      "industry": "服務業",
+      "price": 75.2,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        75,
+        75.2
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0.9,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "BTC": {
+      "name": "比特幣",
+      "industry": "虛擬貨幣",
+      "price": 1000000,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        1000000
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0,
+      "dividend_interval": 0,
+      "next_dividend_day": 0
+    }
+  },
+  "btc_balance": 0.0,
+  "btc_miner_count": 0,
+  "btc_hashrate": 0.0,
+  "market_volatility": 0.01,
+  "btc_mining_rate_per_kh": 0.001,
+  "btc_price_volatility_sigma": 0.003,
+  "transaction_history": [],
+  "last_slot_win": 0,
+  "achievements_unlocked": [],
+  "days": 0
+}

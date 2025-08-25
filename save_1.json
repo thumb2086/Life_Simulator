@@ -1,0 +1,271 @@
+{
+  "reborn_count": 0,
+  "balance": 0,
+  "cash": 1033,
+  "loan": 0,
+  "deposit_interest_rate": 0.01,
+  "loan_interest_rate": 0.005,
+  "stocks": {
+    "TSMC": {
+      "name": "台積電",
+      "industry": "科技業",
+      "price": 102.44,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        100,
+        100.52,
+        100.63,
+        101.5,
+        102.62,
+        103.08,
+        103.21,
+        102.44
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "HONHAI": {
+      "name": "鴻海",
+      "industry": "科技業",
+      "price": 80.2,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        80,
+        79.53,
+        79.13,
+        78.2,
+        78.6,
+        80.22,
+        79.83,
+        80.2
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "MTK": {
+      "name": "聯發科",
+      "industry": "科技業",
+      "price": 118.02,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        120,
+        118.67,
+        119.16,
+        121.08,
+        121.39,
+        120.07,
+        117.6,
+        118.02
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "MINING": {
+      "name": "挖礦公司",
+      "industry": "一級產業",
+      "price": 59.99,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        60,
+        59.28,
+        59.84,
+        60.58,
+        60.5,
+        60.78,
+        59.68,
+        59.99
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 2,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "FARM": {
+      "name": "農業公司",
+      "industry": "一級產業",
+      "price": 48.92,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        50,
+        49.67,
+        49.61,
+        48.76,
+        48.82,
+        48.09,
+        48.71,
+        48.92
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1.5,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "FOREST": {
+      "name": "林業公司",
+      "industry": "一級產業",
+      "price": 56.21,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        55,
+        55.04,
+        55.76,
+        55.16,
+        54.93,
+        55.0,
+        55.58,
+        56.21
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1.2,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "RETAIL": {
+      "name": "零售連鎖",
+      "industry": "服務業",
+      "price": 70.27,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        70,
+        70.37,
+        70.07,
+        69.46,
+        69.67,
+        69.82,
+        69.99,
+        70.27
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 1,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "RESTAURANT": {
+      "name": "餐飲集團",
+      "industry": "服務業",
+      "price": 64.87,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        65,
+        64.54,
+        65.83,
+        65.66,
+        65.54,
+        65.35,
+        65.21,
+        64.87
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0.8,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "TRAVEL": {
+      "name": "旅遊公司",
+      "industry": "服務業",
+      "price": 73.7,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        75,
+        74.48,
+        74.61,
+        74.45,
+        72.76,
+        72.4,
+        72.14,
+        73.7
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0.9,
+      "dividend_interval": 30,
+      "next_dividend_day": 30
+    },
+    "BTC": {
+      "name": "比特幣",
+      "industry": "虛擬貨幣",
+      "price": 992652.43,
+      "owned": 0,
+      "total_cost": 0,
+      "history": [
+        1000000,
+        998707.88,
+        1000724.59,
+        992652.43
+      ],
+      "buy_points": [],
+      "sell_points": [],
+      "dividend_per_share": 0,
+      "dividend_interval": 0,
+      "next_dividend_day": 1
+    }
+  },
+  "btc_balance": 0.0,
+  "btc_miner_count": 0,
+  "btc_hashrate": 0.0,
+  "market_volatility": 0.01,
+  "btc_mining_rate_per_kh": 0.001,
+  "btc_price_volatility_sigma": 0.003,
+  "transaction_history": [
+    {
+      "timestamp": "2025-07-24 22:44:37",
+      "message": "隨機事件：突發稅金 - 政府徵收突發稅金，現金減少！｜影響：現金減少 $130"
+    },
+    {
+      "timestamp": "2025-07-24 22:44:51",
+      "message": "21點下注 $100"
+    },
+    {
+      "timestamp": "2025-07-24 22:44:54",
+      "message": "21點失敗，輸了 $100.00"
+    },
+    {
+      "timestamp": "2025-07-24 22:44:55",
+      "message": "21點下注 $100"
+    },
+    {
+      "timestamp": "2025-07-24 22:44:56",
+      "message": "21點失敗，輸了 $100.00"
+    },
+    {
+      "timestamp": "2025-07-24 22:44:57",
+      "message": "21點下注 $100"
+    },
+    {
+      "timestamp": "2025-07-24 22:45:02",
+      "message": "21點獲勝，淨賺 $100.00"
+    },
+    {
+      "timestamp": "2025-07-24 22:45:02",
+      "message": "隨機事件：投資講座 - 參加投資講座，可能有正負效果！｜影響：現金增加 $263"
+    }
+  ],
+  "last_slot_win": 0,
+  "achievements_unlocked": [],
+  "days": 1,
+  "slot_total_win": 4800,
+  "slot_win_streak": 0
+}

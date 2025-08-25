@@ -1,0 +1,129 @@
+class GameData:
+    def __init__(self):
+        self.reborn_count = 0
+        self.reset()
+
+    def reset(self, is_reborn=False):
+        self.balance = 0
+        self.cash = 1000
+        self.loan = 0
+        self.deposit_interest_rate = 0.01
+        self.loan_interest_rate = 0.005
+        # 多檔股票資料
+        self.stocks = {
+            'TSMC': {'name': '台積電', 'industry': '科技業', 'price': 100, 'owned': 0, 'total_cost': 0, 'history': [100], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'HONHAI': {'name': '鴻海', 'industry': '科技業', 'price': 80, 'owned': 0, 'total_cost': 0, 'history': [80], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'MTK': {'name': '聯發科', 'industry': '科技業', 'price': 120, 'owned': 0, 'total_cost': 0, 'history': [120], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'MINING': {'name': '挖礦公司', 'industry': '一級產業', 'price': 60, 'owned': 0, 'total_cost': 0, 'history': [60], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 2, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'FARM': {'name': '農業公司', 'industry': '一級產業', 'price': 50, 'owned': 0, 'total_cost': 0, 'history': [50], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.5, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'FOREST': {'name': '林業公司', 'industry': '一級產業', 'price': 55, 'owned': 0, 'total_cost': 0, 'history': [55], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.2, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'RETAIL': {'name': '零售連鎖', 'industry': '服務業', 'price': 70, 'owned': 0, 'total_cost': 0, 'history': [70], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'RESTAURANT': {'name': '餐飲集團', 'industry': '服務業', 'price': 65, 'owned': 0, 'total_cost': 0, 'history': [65], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.8, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'TRAVEL': {'name': '旅遊公司', 'industry': '服務業', 'price': 75, 'owned': 0, 'total_cost': 0, 'history': [75], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.9, 'dividend_interval': 30, 'next_dividend_day': 30},
+            'BTC': {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
+        }
+        self.btc_balance = 0.0
+        self.btc_miner_count = 0
+        self.btc_hashrate = 0.0
+        self.market_volatility = 0.01 # 普通股票波動率
+        
+        # 新增比特幣相關可調整參數
+        self.btc_mining_rate_per_kh = 0.001 # 每 1 kh 算力每回合產出的比特幣數量
+        self.btc_price_volatility_sigma = 0.003 # 比特幣價格波動率 (高斯分佈的標準差)
+
+        self.transaction_history = []
+        self.last_slot_win = 0
+        self.achievements_unlocked = []
+        self.days = 0
+        if is_reborn:
+            self.reborn_count += 1
+
+    def save(self, file_path, show_error=None):
+        import json
+        try:
+            if hasattr(self, 'achievements_manager'):
+                self.achievements_unlocked = self.achievements_manager.export_unlocked_keys()
+            data = {k: v for k, v in self.__dict__.items() if k != 'achievements_manager'}
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            if show_error:
+                show_error(f"存檔失敗：{e}")
+            else:
+                print(f"存檔失敗：{e}")
+
+
+    def load(self, file_path, show_error=None):
+        import json
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self.__dict__.update(data)
+            # 自動補齊新版欄位
+            if not hasattr(self, 'reborn_count'):
+                self.reborn_count = 0
+            if not hasattr(self, 'btc_balance'):
+                self.btc_balance = 0.0
+            if not hasattr(self, 'btc_miner_count'):
+                self.btc_miner_count = 0
+            if not hasattr(self, 'btc_hashrate'):
+                self.btc_hashrate = 0.0
+            if 'BTC' not in self.stocks:
+                self.stocks['BTC'] = {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
+            
+            # BUG FIX: industry_map 將服務業公司的產業別錯誤地設為其名稱，已修正。
+            industry_map = {
+                'TSMC': '科技業', 'HONHAI': '科技業', 'MTK': '科技業',
+                'MINING': '一級產業', 'FARM': '一級產業', 'FOREST': '一級產業',
+                'RETAIL': '服務業', 'RESTAURANT': '服務業', 'TRAVEL': '服務業',
+            }
+            for code, stock in self.stocks.items():
+                if 'industry' not in stock:
+                    stock['industry'] = industry_map.get(code, '未知')
+                if 'dividend_per_share' not in stock:
+                    stock['dividend_per_share'] = 1
+                if 'dividend_interval' not in stock:
+                    stock['dividend_interval'] = 30
+                if 'next_dividend_day' not in stock:
+                    stock['next_dividend_day'] = 30
+                # 確保舊存檔也有 buy_points 和 sell_points
+                if 'buy_points' not in stock:
+                    stock['buy_points'] = []
+                if 'sell_points' not in stock:
+                    stock['sell_points'] = []
+
+            # 補齊新加入的 btc 參數
+            if not hasattr(self, 'btc_mining_rate_per_kh'):
+                self.btc_mining_rate_per_kh = 0.001
+            if not hasattr(self, 'btc_price_volatility_sigma'):
+                self.btc_price_volatility_sigma = 0.003
+
+            if hasattr(self, 'achievements_manager'):
+                self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器
+        except Exception as e:
+            if show_error:
+                show_error(f"讀檔失敗：{e}")
+            else:
+                print(f"讀檔失敗：{e}")
+
+    def is_valid(self):
+        return self.balance is not None and self.cash is not None
+
+    def total_assets(self):
+        # 計算普通股票的市值
+        stock_value = sum(s['price'] * s['owned'] for s in self.stocks.values() if s['name'] != '比特幣')
+
+        # 計算比特幣的市值
+        btc_price = self.stocks['BTC']['price']
+        btc_market_value = self.btc_balance * btc_price
+
+        # 總資產 = 銀行存款 + 現金 + 普通股票市值 + 比特幣市值 - 貸款
+        return self.balance + self.cash + stock_value + btc_market_value - self.loan
+    
+    @property
+    def loan_limit(self):
+        # 貸款上限為資產5倍（不含貸款本身）
+        assets = self.balance + self.cash + \
+                 sum(s['price'] * s['owned'] for s in self.stocks.values() if s['name'] != '比特幣') + \
+                 (self.btc_balance * self.stocks['BTC']['price'])
+        return assets * 5
