@@ -9,6 +9,10 @@ from crypto_manager import CryptoManager
 FONT = ("Microsoft JhengHei", 12)
 HEADER_FONT = ("Microsoft JhengHei", 18, "bold")
 
+# 集中存檔資料夾（保留舊檔相容）
+SAVE_DIR = os.path.join('.', 'saves')
+os.makedirs(SAVE_DIR, exist_ok=True)
+
 # 標題區域
 def create_header_section(root, game):
     frame = ttk.Frame(root)
@@ -36,10 +40,21 @@ def create_main_tabs(root, game):
         for i in range(tab_control.index('end')):
             tab_control.tab(i, state='disabled')
     def get_all_usernames():
-        # 只顯示有 save_帳號.json 檔案的帳號
-        files = [f for f in os.listdir('.') if f.startswith('save_') and f.endswith('.json')]
-        usernames = [f[5:-5] for f in files]
-        return usernames
+        # 同時掃描根目錄與 SAVE_DIR，並去重
+        names = set()
+        try:
+            for f in os.listdir('.'):
+                if f.startswith('save_') and f.endswith('.json'):
+                    names.add(f[5:-5])
+        except Exception:
+            pass
+        try:
+            for f in os.listdir(SAVE_DIR):
+                if f.startswith('save_') and f.endswith('.json'):
+                    names.add(f[5:-5])
+        except Exception:
+            pass
+        return sorted(names)
     usernames = get_all_usernames()
     def do_login(event=None):
         username = game.username_var.get().strip()
@@ -57,13 +72,27 @@ def create_main_tabs(root, game):
             for i in range(tab_control.index('end')):
                 tab_control.tab(i, state='normal')
             # 載入存檔，若不存在則重設 GameData
-            savefile = f"save_{username}.json"
-            if os.path.exists(savefile):
-                game.data.load(savefile, show_error=lambda msg: tk.messagebox.showerror("讀檔錯誤", msg))
+            # 統一路徑：saves/save_username.json
+            savefile = os.path.join(SAVE_DIR, f"save_{username}.json")
+            old_path = os.path.abspath(f"save_{username}.json")
+            new_path = os.path.abspath(savefile)
+            if os.path.exists(new_path):
+                game.data.load(new_path, show_error=lambda msg: tk.messagebox.showerror("讀檔錯誤", msg))
+            elif os.path.exists(old_path):
+                # 從舊位置遷移到新資料夾
+                try:
+                    os.replace(old_path, new_path)
+                except Exception:
+                    # 若無法搬移，至少先讀舊檔，稍後存檔會寫入新路徑
+                    pass
+                try:
+                    game.data.load(new_path if os.path.exists(new_path) else old_path, show_error=lambda msg: tk.messagebox.showerror("讀檔錯誤", msg))
+                except Exception:
+                    game.data.reset()
             else:
                 game.data.reset()  # 新帳號重設現金 1000
-                game.data.save(savefile)  # 立刻存檔，避免自動儲存寫回舊資料
-            game.savefile = savefile
+                game.data.save(new_path)  # 立刻存檔，避免自動儲存寫回舊資料
+            game.savefile = new_path
             # 新增：即時刷新帳號下拉選單
             game.username_entry['values'] = get_all_usernames()
             game.update_display()
@@ -107,12 +136,18 @@ def create_main_tabs(root, game):
                 tk.messagebox.showwarning("錯誤", "請選擇帳號！")
                 return
             try:
-                savefile = f"save_{username}.json"
-                savefile_path = os.path.abspath(savefile)
-                if os.path.exists(savefile_path):
-                    os.remove(savefile_path)
-                else:
-                    print(f"找不到檔案: {savefile_path}")  # 除錯用
+                # 優先刪除新路徑，其次舊路徑
+                savefile_new = os.path.abspath(os.path.join(SAVE_DIR, f"save_{username}.json"))
+                savefile_old = os.path.abspath(f"save_{username}.json")
+                removed = False
+                if os.path.exists(savefile_new):
+                    os.remove(savefile_new)
+                    removed = True
+                elif os.path.exists(savefile_old):
+                    os.remove(savefile_old)
+                    removed = True
+                if not removed:
+                    print(f"找不到檔案: {savefile_new} 或 {savefile_old}")  # 除錯用
                 # 更新排行榜資料（只保留現有帳號）
                 usernames_valid = set(get_all_usernames())
                 if os.path.exists('leaderboard.json'):

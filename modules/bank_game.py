@@ -796,9 +796,17 @@ class BankGame:
         self.debug_log("trigger_event executed")
 
     def show_leaderboard(self):
-        # 只顯示現有帳號的前100名
+        # 只顯示現有帳號的前100名（同時掃描根目錄與 saves/ 以相容新舊路徑）
         from os import listdir
+        import os as _os
         usernames_valid = set([f[5:-5] for f in listdir('.') if f.startswith('save_') and f.endswith('.json')])
+        save_dir = _os.path.join('.', 'saves')
+        try:
+            for f in listdir(save_dir):
+                if f.startswith('save_') and f.endswith('.json'):
+                    usernames_valid.add(f[5:-5])
+        except Exception:
+            pass
         top = [r for r in self.leaderboard.get_top() if r['username'] in usernames_valid]
         msg = "排行榜：\n" + "\n".join([
             f"{i+1}. {r['username']} 資產: ${r['asset']} 天數: {r['days']}" for i, r in enumerate(top)
