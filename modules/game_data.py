@@ -54,6 +54,33 @@ class GameData:
         self.expenses = []
         # 支出歷史：[{day, name, amount}]
         self.expense_history = []
+        # --- Funds/ETF 預設欄位 ---
+        # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
+        self.funds_catalog = {
+            '台灣科技ETF': {
+                'weights': {'TSMC': 0.5, 'HONHAI': 0.3, 'MTK': 0.2},
+                'fee_rate': 0.002
+            },
+            '服務業綜合ETF': {
+                'weights': {'RETAIL': 0.34, 'RESTAURANT': 0.33, 'TRAVEL': 0.33},
+                'fee_rate': 0.002
+            },
+            '一級產業ETF': {
+                'weights': {'MINING': 0.34, 'FARM': 0.33, 'FOREST': 0.33},
+                'fee_rate': 0.002
+            },
+        }
+        # 持有的基金資訊：每檔包含 nav、units（持有單位）、total_cost、history（nav 歷史）、base_prices（初始化時的股票基準價）
+        self.funds = {}
+        for fname, finfo in self.funds_catalog.items():
+            base_prices = {code: self.stocks[code]['price'] for code in finfo['weights'].keys() if code in self.stocks}
+            self.funds[fname] = {
+                'nav': 100.0,
+                'units': 0.0,
+                'total_cost': 0.0,
+                'history': [100.0],
+                'base_prices': base_prices,
+            }
 
     def save(self, file_path, show_error=None):
         import json
@@ -132,6 +159,40 @@ class GameData:
                 self.expenses = []
             if not hasattr(self, 'expense_history'):
                 self.expense_history = []
+            # --- 補齊 Funds/ETF 欄位 ---
+            if not hasattr(self, 'funds_catalog'):
+                self.funds_catalog = {
+                    '台灣科技ETF': {
+                        'weights': {'TSMC': 0.5, 'HONHAI': 0.3, 'MTK': 0.2},
+                        'fee_rate': 0.002
+                    },
+                    '服務業綜合ETF': {
+                        'weights': {'RETAIL': 0.34, 'RESTAURANT': 0.33, 'TRAVEL': 0.33},
+                        'fee_rate': 0.002
+                    },
+                    '一級產業ETF': {
+                        'weights': {'MINING': 0.34, 'FARM': 0.33, 'FOREST': 0.33},
+                        'fee_rate': 0.002
+                    },
+                }
+            if not hasattr(self, 'funds'):
+                self.funds = {}
+            # 補齊每檔基金必要欄位
+            for fname, finfo in self.funds_catalog.items():
+                if fname not in self.funds:
+                    self.funds[fname] = {}
+                f = self.funds[fname]
+                if 'nav' not in f:
+                    f['nav'] = 100.0
+                if 'units' not in f:
+                    f['units'] = 0.0
+                if 'total_cost' not in f:
+                    f['total_cost'] = 0.0
+                if 'history' not in f or not isinstance(f.get('history'), list):
+                    f['history'] = [f.get('nav', 100.0)]
+                # 基準價格若不存在，以當前股價建立，避免除以零
+                if 'base_prices' not in f or not f.get('base_prices'):
+                    f['base_prices'] = {code: self.stocks[code]['price'] for code in finfo['weights'].keys() if code in self.stocks}
 
             if hasattr(self, 'achievements_manager'):
                 self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器

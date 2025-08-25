@@ -9,7 +9,7 @@
     "TSMC": {
       "name": "台積電",
       "industry": "科技業",
-      "price": 102.44,
+      "price": 99.02,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -20,7 +20,12 @@
         102.62,
         103.08,
         103.21,
-        102.44
+        102.44,
+        101.53,
+        101.75,
+        99.72,
+        100.47,
+        99.02
       ],
       "buy_points": [],
       "sell_points": [],
@@ -31,7 +36,7 @@
     "HONHAI": {
       "name": "鴻海",
       "industry": "科技業",
-      "price": 80.2,
+      "price": 79.45,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -42,7 +47,12 @@
         78.6,
         80.22,
         79.83,
-        80.2
+        80.2,
+        79.61,
+        80.75,
+        79.41,
+        79.88,
+        79.45
       ],
       "buy_points": [],
       "sell_points": [],
@@ -53,7 +63,7 @@
     "MTK": {
       "name": "聯發科",
       "industry": "科技業",
-      "price": 118.02,
+      "price": 115.76,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -64,7 +74,12 @@
         121.39,
         120.07,
         117.6,
-        118.02
+        118.02,
+        118.88,
+        120.26,
+        117.92,
+        116.27,
+        115.76
       ],
       "buy_points": [],
       "sell_points": [],
@@ -75,7 +90,7 @@
     "MINING": {
       "name": "挖礦公司",
       "industry": "一級產業",
-      "price": 59.99,
+      "price": 57.94,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -86,7 +101,12 @@
         60.5,
         60.78,
         59.68,
-        59.99
+        59.99,
+        59.31,
+        58.73,
+        57.77,
+        57.29,
+        57.94
       ],
       "buy_points": [],
       "sell_points": [],
@@ -97,7 +117,7 @@
     "FARM": {
       "name": "農業公司",
       "industry": "一級產業",
-      "price": 48.92,
+      "price": 51.57,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -108,7 +128,12 @@
         48.82,
         48.09,
         48.71,
-        48.92
+        48.92,
+        50.05,
+        50.56,
+        51.26,
+        51.62,
+        51.57
       ],
       "buy_points": [],
       "sell_points": [],
@@ -119,7 +144,7 @@
     "FOREST": {
       "name": "林業公司",
       "industry": "一級產業",
-      "price": 56.21,
+      "price": 55.19,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -130,7 +155,12 @@
         54.93,
         55.0,
         55.58,
-        56.21
+        56.21,
+        56.27,
+        55.05,
+        55.27,
+        54.91,
+        55.19
       ],
       "buy_points": [],
       "sell_points": [],
@@ -141,7 +171,7 @@
     "RETAIL": {
       "name": "零售連鎖",
       "industry": "服務業",
-      "price": 70.27,
+      "price": 69.03,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -152,7 +182,12 @@
         69.67,
         69.82,
         69.99,
-        70.27
+        70.27,
+        69.91,
+        70.03,
+        70.32,
+        69.88,
+        69.03
       ],
       "buy_points": [],
       "sell_points": [],
@@ -163,7 +198,7 @@
     "RESTAURANT": {
       "name": "餐飲集團",
       "industry": "服務業",
-      "price": 64.87,
+      "price": 61.65,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -174,7 +209,12 @@
         65.54,
         65.35,
         65.21,
-        64.87
+        64.87,
+        63.95,
+        63.5,
+        63.4,
+        61.98,
+        61.65
       ],
       "buy_points": [],
       "sell_points": [],
@@ -185,7 +225,7 @@
     "TRAVEL": {
       "name": "旅遊公司",
       "industry": "服務業",
-      "price": 73.7,
+      "price": 73.62,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -196,7 +236,12 @@
         72.76,
         72.4,
         72.14,
-        73.7
+        73.7,
+        74.39,
+        73.97,
+        73.98,
+        73.43,
+        73.62
       ],
       "buy_points": [],
       "sell_points": [],
@@ -207,14 +252,19 @@
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 992652.43,
+      "price": 966031.2,
       "owned": 0,
       "total_cost": 0,
       "history": [
         1000000,
         998707.88,
         1000724.59,
-        992652.43
+        992652.43,
+        993003.35,
+        992561.51,
+        988862.69,
+        969272.3,
+        966031.2
       ],
       "buy_points": [],
       "sell_points": [],
@@ -261,11 +311,110 @@
     {
       "timestamp": "2025-07-24 22:45:02",
       "message": "隨機事件：投資講座 - 參加投資講座，可能有正負效果！｜影響：現金增加 $263"
+    },
+    {
+      "timestamp": "2025-08-25 15:47:54",
+      "message": "已選擇工作：實習生，日薪 $50.00"
     }
   ],
   "last_slot_win": 0,
   "achievements_unlocked": [],
   "days": 1,
+  "job": {
+    "name": "實習生",
+    "level": 1,
+    "salary_per_day": 50.0,
+    "tax_rate": 0.05,
+    "next_promotion_day": 8
+  },
+  "income_history": [],
+  "jobs_catalog": {
+    "實習生": {
+      "base_salary_per_day": 50.0,
+      "tax_rate": 0.05
+    },
+    "工程師": {
+      "base_salary_per_day": 120.0,
+      "tax_rate": 0.1
+    },
+    "資深工程師": {
+      "base_salary_per_day": 200.0,
+      "tax_rate": 0.12
+    },
+    "經理": {
+      "base_salary_per_day": 300.0,
+      "tax_rate": 0.15
+    }
+  },
+  "expenses": [],
+  "expense_history": [],
+  "funds_catalog": {
+    "台灣科技ETF": {
+      "weights": {
+        "TSMC": 0.5,
+        "HONHAI": 0.3,
+        "MTK": 0.2
+      },
+      "fee_rate": 0.002
+    },
+    "服務業綜合ETF": {
+      "weights": {
+        "RETAIL": 0.34,
+        "RESTAURANT": 0.33,
+        "TRAVEL": 0.33
+      },
+      "fee_rate": 0.002
+    },
+    "一級產業ETF": {
+      "weights": {
+        "MINING": 0.34,
+        "FARM": 0.33,
+        "FOREST": 0.33
+      },
+      "fee_rate": 0.002
+    }
+  },
+  "funds": {
+    "台灣科技ETF": {
+      "nav": 100.0,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0
+      ],
+      "base_prices": {
+        "TSMC": 100,
+        "HONHAI": 80,
+        "MTK": 120
+      }
+    },
+    "服務業綜合ETF": {
+      "nav": 100.0,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0
+      ],
+      "base_prices": {
+        "RETAIL": 70,
+        "RESTAURANT": 65,
+        "TRAVEL": 75
+      }
+    },
+    "一級產業ETF": {
+      "nav": 100.0,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0
+      ],
+      "base_prices": {
+        "MINING": 60,
+        "FARM": 50,
+        "FOREST": 55
+      }
+    }
+  },
   "slot_total_win": 4800,
   "slot_win_streak": 0
 }

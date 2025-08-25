@@ -156,6 +156,8 @@ class BankGame:
         self.update_job_ui()
         # 更新支出清單 UI
         self.update_expenses_ui()
+        # 更新基金/ETF UI
+        self.update_funds_ui()
         self.update_charts()
         self.update_achievements_list()
         # 將頻繁 I/O 轉為延遲合併寫入
@@ -225,7 +227,6 @@ class BankGame:
         dt = (time.perf_counter() - t0) * 1000
         self.debug_log(f"update_charts: updated={updated}, skipped={skipped}, {dt:.1f} ms")
 
-
     def log_transaction(self, message):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.data.transaction_history.append({'timestamp': timestamp, 'message': message})
@@ -260,6 +261,8 @@ class BankGame:
                     new_price = max(10, round(new_price, 2))
                     stock['price'] = new_price
                     stock['history'].append(new_price)
+                # 股票更新後，同步更新基金 NAV
+                self.compute_fund_navs()
                 self.update_display()
             # 每 30 秒執行利息與配息與比特幣產幣
             if tick % 30 == 0:
@@ -355,6 +358,8 @@ class BankGame:
                     mined = hashrate * 0.01  # 每30秒產生的比特幣數量，可調整
                     self.data.btc_balance += mined
                     self.log_transaction(f"礦機自動挖礦，獲得比特幣 {mined:.4f}")
+                # 每日結束時也更新一次基金 NAV 並記錄歷史
+                self.compute_fund_navs(record_history=True)
                 self.update_display()
             # 破產偵測
             self.check_bankruptcy_and_reborn()
@@ -563,7 +568,143 @@ class BankGame:
                 else:
                     self.log_transaction("還款失敗：現金不足！")
         else:
-            self.log_transaction("還款失敗：現金不足！")
+            self.log_transaction("還款失敗：金額錯誤！")
+
+    # --- 基金/ETF 功能 ---
+    def compute_fund_navs(self, record_history=False):
+        try:
+            if not hasattr(self.data, 'funds_catalog') or not hasattr(self.data, 'funds'):
+                return
+            for fname, finfo in self.data.funds_catalog.items():
+                f = self.data.funds.get(fname)
+                if not isinstance(f, dict):
+                    continue
+                base_prices = f.get('base_prices') or {}
+                value_sum = 0.0
+                weight_sum = 0.0
+                for code, w in finfo.get('weights', {}).items():
+                    stock = self.data.stocks.get(code)
+                    if not stock:
+                        continue
+                    price = float(stock.get('price', 0.0))
+                    base = float(base_prices.get(code, 0.0))
+                    if base <= 0:
+                        base = price if price > 0 else 1.0
+                        f.setdefault('base_prices', {})[code] = base
+                    value_sum += w * (price / base)
+                    weight_sum += w
+                if weight_sum <= 0:
+                    nav = f.get('nav', 100.0)
+                else:
+                    nav = 100.0 * value_sum  # 權重和視為 1
+                f['nav'] = round(nav, 4)
+                if record_history:
+                    f.setdefault('history', []).append(f['nav'])
+        except Exception as e:
+            self.debug_log(f"compute_fund_navs error: {e}")
+
+    def update_funds_ui(self):
+        try:
+            if not hasattr(self, 'fund_select_var'):
+                return
+            fname = self.fund_select_var.get().strip()
+            if not fname or fname not in getattr(self.data, 'funds', {}):
+                return
+            f = self.data.funds[fname]
+            finfo = self.data.funds_catalog.get(fname, {})
+            nav = f.get('nav', 100.0)
+            units = float(f.get('units', 0.0))
+            total_cost = float(f.get('total_cost', 0.0))
+            avg = (total_cost / units) if units > 0 else 0.0
+            if hasattr(self, 'fund_nav_label'):
+                self.fund_nav_label.config(text=f"NAV：${nav:.4f}  手續費率：{finfo.get('fee_rate',0.0)*100:.2f}%")
+            if hasattr(self, 'fund_hold_label'):
+                self.fund_hold_label.config(text=f"持有單位：{units:.4f}")
+            if hasattr(self, 'fund_avg_label'):
+                self.fund_avg_label.config(text=f"平均成本：${avg:.4f}")
+        except Exception as e:
+            self.debug_log(f"update_funds_ui error: {e}")
+
+    def _get_fund_units_from_ui(self):
+        try:
+            if hasattr(self, 'fund_units_var'):
+                val = self.fund_units_var.get().strip()
+            elif hasattr(self, 'fund_units_entry'):
+                val = self.fund_units_entry.get().strip()
+            else:
+                return None
+            if val == '':
+                self.show_event_message("請輸入基金單位數！")
+                return None
+            units = float(val)
+            if units <= 0:
+                self.show_event_message("單位數需為正數！")
+                return None
+            return units
+        except Exception:
+            self.show_event_message("請輸入有效的單位數！")
+            return None
+
+    def buy_fund_from_ui(self):
+        try:
+            if not hasattr(self, 'fund_select_var'):
+                return
+            fname = self.fund_select_var.get().strip()
+            if not fname or fname not in self.data.funds:
+                return
+            units = self._get_fund_units_from_ui()
+            if units is None:
+                return
+            f = self.data.funds[fname]
+            finfo = self.data.funds_catalog.get(fname, {})
+            nav = float(f.get('nav', 100.0))
+            fee_rate = float(finfo.get('fee_rate', 0.0))
+            total_cost_cash = units * nav * (1.0 + fee_rate)
+            if self.data.cash >= total_cost_cash:
+                f['units'] = float(f.get('units', 0.0)) + units
+                f['total_cost'] = float(f.get('total_cost', 0.0)) + (units * nav)
+                self.data.cash -= total_cost_cash
+                self.log_transaction(f"買入基金 {fname} {units:.4f} 單位，成交價 NAV ${nav:.4f}，手續費率 {fee_rate*100:.2f}% ，支出現金 ${total_cost_cash:.2f}")
+                self.update_funds_ui()
+                self.update_display()
+            else:
+                self.log_transaction(f"買入基金失敗：現金不足，需要 ${total_cost_cash:.2f}")
+        except Exception as e:
+            self.debug_log(f"buy_fund_from_ui error: {e}")
+
+    def sell_fund_from_ui(self):
+        try:
+            if not hasattr(self, 'fund_select_var'):
+                return
+            fname = self.fund_select_var.get().strip()
+            if not fname or fname not in self.data.funds:
+                return
+            units = self._get_fund_units_from_ui()
+            if units is None:
+                return
+            f = self.data.funds[fname]
+            current_units = float(f.get('units', 0.0))
+            if units > current_units:
+                self.log_transaction(f"賣出基金失敗：持有單位不足（持有 {current_units:.4f}）")
+                return
+            finfo = self.data.funds_catalog.get(fname, {})
+            nav = float(f.get('nav', 100.0))
+            fee_rate = float(finfo.get('fee_rate', 0.0))
+            proceeds = units * nav * (1.0 - fee_rate)
+            # 調整持倉與成本
+            f['units'] = current_units - units
+            if f['units'] <= 0:
+                f['units'] = 0.0
+                f['total_cost'] = 0.0
+            else:
+                # 成本按比例遞減
+                f['total_cost'] *= f['units'] / (f['units'] + units)
+            self.data.cash += proceeds
+            self.log_transaction(f"賣出基金 {fname} {units:.4f} 單位，成交價 NAV ${nav:.4f}，手續費率 {fee_rate*100:.2f}% ，入帳現金 ${proceeds:.2f}")
+            self.update_funds_ui()
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"sell_fund_from_ui error: {e}")
 
     # --- 上班模式：工作選擇與升職 ---
     def ui_select_job(self):

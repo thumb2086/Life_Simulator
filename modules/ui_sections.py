@@ -345,6 +345,47 @@ def create_main_tabs(root, game):
     # --- 比特幣獨立分頁 ---
     game.crypto_manager = CryptoManager(game)
     game.crypto_manager.create_crypto_tab(tab_control)
+    # --- 基金/ETF 分頁 ---
+    funds_tab = ttk.Frame(tab_control)
+    tab_control.add(funds_tab, text="📊 基金/ETF")
+    funds_frame = ttk.LabelFrame(funds_tab, text="基金/ETF", padding="10")
+    funds_frame.pack(fill=tk.X, pady=10, padx=10)
+    # 選擇基金
+    row_sel = ttk.Frame(funds_frame)
+    row_sel.pack(fill=tk.X, pady=4)
+    ttk.Label(row_sel, text="選擇基金：", font=FONT).pack(side=tk.LEFT, padx=6)
+    fund_names = list(getattr(game.data, 'funds_catalog', {}).keys())
+    game.fund_select_var = tk.StringVar(value=(fund_names[0] if fund_names else ""))
+    fund_combo = ttk.Combobox(row_sel, textvariable=game.fund_select_var, values=fund_names, font=FONT, state='readonly', width=18)
+    fund_combo.pack(side=tk.LEFT, padx=6)
+    # NAV 與持倉資訊
+    row_info = ttk.Frame(funds_frame)
+    row_info.pack(fill=tk.X, pady=4)
+    game.fund_nav_label = ttk.Label(row_info, text="NAV：-", font=FONT)
+    game.fund_nav_label.grid(row=0, column=0, padx=6, pady=2, sticky='w')
+    game.fund_hold_label = ttk.Label(row_info, text="持有單位：0.0000", font=FONT)
+    game.fund_hold_label.grid(row=0, column=1, padx=6, pady=2, sticky='w')
+    game.fund_avg_label = ttk.Label(row_info, text="平均成本：$0.0000", font=FONT)
+    game.fund_avg_label.grid(row=0, column=2, padx=6, pady=2, sticky='w')
+    # 輸入與買賣
+    row_trade = ttk.Frame(funds_frame)
+    row_trade.pack(fill=tk.X, pady=6)
+    ttk.Label(row_trade, text="單位數：", font=FONT).pack(side=tk.LEFT, padx=6)
+    game.fund_units_var = tk.StringVar()
+    game.fund_units_entry = ttk.Entry(row_trade, textvariable=game.fund_units_var, width=12, font=FONT)
+    game.fund_units_entry.pack(side=tk.LEFT, padx=4)
+    ttk.Button(row_trade, text="買入", command=game.buy_fund_from_ui, width=10).pack(side=tk.LEFT, padx=6)
+    ttk.Button(row_trade, text="賣出", command=game.sell_fund_from_ui, width=10).pack(side=tk.LEFT, padx=6)
+    # 綁定變更時更新顯示
+    def on_fund_selected(event=None):
+        try:
+            game.compute_fund_navs()
+            game.update_funds_ui()
+        except Exception:
+            pass
+    fund_combo.bind('<<ComboboxSelected>>', on_fund_selected)
+    # 初始刷新
+    on_fund_selected()
     # --- 拉霸機分頁（只保留一台） ---
     slot_tab = ttk.Frame(tab_control)
     tab_control.add(slot_tab, text="🎰 拉霸機")
