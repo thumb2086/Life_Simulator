@@ -93,6 +93,14 @@ def create_main_tabs(root, game):
                 game.data.reset()  # 新帳號重設現金 1000
                 game.data.save(new_path)  # 立刻存檔，避免自動儲存寫回舊資料
             game.savefile = new_path
+            # 新增：初始化預設固定支出與商店 UI
+            try:
+                if hasattr(game, 'ensure_default_expenses'):
+                    game.ensure_default_expenses()
+                if hasattr(game, 'update_store_ui'):
+                    game.update_store_ui()
+            except Exception:
+                pass
             # 新增：即時刷新帳號下拉選單
             game.username_entry['values'] = get_all_usernames()
             game.update_display()
@@ -346,6 +354,10 @@ def create_main_tabs(root, game):
     btn_row = ttk.Frame(expense_frame)
     btn_row.pack(fill=tk.X, pady=5)
     ttk.Button(btn_row, text="刪除選取支出", command=game.delete_expense_from_ui, width=16).pack(side=tk.LEFT, padx=6)
+    ttk.Button(btn_row, text="取消訂閱", command=game.cancel_subscription_from_ui, width=12).pack(side=tk.LEFT, padx=6)
+    # 支出總覽
+    game.expense_summary_label = ttk.Label(expense_frame, text="預估支出：每日 $0.00｜每週 $0.00｜每月 $0.00", font=FONT, foreground="#888")
+    game.expense_summary_label.pack(fill=tk.X, padx=6)
     # --- 股票圖表分頁（多圖表+買賣操作） ---
     chart_tab = ttk.Frame(tab_control)
     tab_control.add(chart_tab, text="📈 股票")
@@ -421,6 +433,37 @@ def create_main_tabs(root, game):
     fund_combo.bind('<<ComboboxSelected>>', on_fund_selected)
     # 初始刷新
     on_fund_selected()
+    # --- 商店分頁 ---
+    store_tab = ttk.Frame(tab_control)
+    tab_control.add(store_tab, text="🛒 商店")
+    # 訂閱與商品區塊
+    store_frame = ttk.LabelFrame(store_tab, text="商店", padding="10")
+    store_frame.pack(fill=tk.BOTH, expand=True, pady=10, padx=10)
+    # 左：訂閱列表
+    left_col = ttk.Frame(store_frame)
+    left_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6)
+    ttk.Label(left_col, text="訂閱服務", font=FONT).pack(anchor='w')
+    game.store_subs_list = tk.Listbox(left_col, height=8, font=FONT)
+    game.store_subs_list.pack(fill=tk.BOTH, expand=True)
+    ttk.Button(left_col, text="訂閱選取服務", command=game.subscribe_selected_from_ui).pack(pady=6)
+    # 中：商品列表
+    mid_col = ttk.Frame(store_frame)
+    mid_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6)
+    ttk.Label(mid_col, text="商品", font=FONT).pack(anchor='w')
+    game.store_goods_list = tk.Listbox(mid_col, height=8, font=FONT)
+    game.store_goods_list.pack(fill=tk.BOTH, expand=True)
+    ttk.Button(mid_col, text="購買選取商品", command=game.buy_selected_good_from_ui).pack(pady=6)
+    # 右：物品欄
+    right_col = ttk.Frame(store_frame)
+    right_col.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=6)
+    ttk.Label(right_col, text="物品欄", font=FONT).pack(anchor='w')
+    game.inventory_list = tk.Listbox(right_col, height=8, font=FONT)
+    game.inventory_list.pack(fill=tk.BOTH, expand=True)
+    # 初始刷新商店
+    try:
+        game.update_store_ui()
+    except Exception:
+        pass
     # --- 拉霸機分頁（只保留一台） ---
     slot_tab = ttk.Frame(tab_control)
     tab_control.add(slot_tab, text="🎰 拉霸機")

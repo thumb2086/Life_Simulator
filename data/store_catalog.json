@@ -1,0 +1,11 @@
+{
+  "subscriptions": {
+    "Netflix 訂閱": {"price": 0.0, "type": "subscription", "amount": 15.0, "frequency": "monthly"},
+    "Spotify 訂閱": {"price": 0.0, "type": "subscription", "amount": 10.0, "frequency": "monthly"},
+    "健身房會員": {"price": 0.0, "type": "subscription", "amount": 30.0, "frequency": "monthly"}
+  },
+  "goods": {
+    "筆電": {"price": 800.0, "type": "goods"},
+    "自行車": {"price": 150.0, "type": "goods"}
+  }
+}

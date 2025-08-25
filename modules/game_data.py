@@ -1,3 +1,7 @@
+import os
+import json
+
+
 class GameData:
     def __init__(self):
         self.reborn_count = 0
@@ -54,6 +58,11 @@ class GameData:
         self.expenses = []
         # 支出歷史：[{day, name, amount}]
         self.expense_history = []
+        # 是否已加入預設固定支出（公用事業與基本訂閱）
+        self.expense_defaults_added = False
+        # 商店：可購買的項目與玩家物品清單（嘗試外部讀取 data/store_catalog.json）
+        self.store_catalog = self._load_store_catalog_external()
+        self.inventory = []
         # --- Funds/ETF 預設欄位 ---
         # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
         self.funds_catalog = {
@@ -83,7 +92,6 @@ class GameData:
             }
 
     def save(self, file_path, show_error=None):
-        import json
         try:
             if hasattr(self, 'achievements_manager'):
                 self.achievements_unlocked = self.achievements_manager.export_unlocked_keys()
@@ -98,7 +106,6 @@ class GameData:
 
 
     def load(self, file_path, show_error=None):
-        import json
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -159,6 +166,13 @@ class GameData:
                 self.expenses = []
             if not hasattr(self, 'expense_history'):
                 self.expense_history = []
+            if not hasattr(self, 'expense_defaults_added'):
+                self.expense_defaults_added = False
+            # --- 補齊 商店 與 物品欄 ---
+            if not hasattr(self, 'store_catalog'):
+                self.store_catalog = self._load_store_catalog_external()
+            if not hasattr(self, 'inventory'):
+                self.inventory = []
             # --- 補齊 Funds/ETF 欄位 ---
             if not hasattr(self, 'funds_catalog'):
                 self.funds_catalog = {
@@ -201,6 +215,34 @@ class GameData:
                 show_error(f"讀檔失敗：{e}")
             else:
                 print(f"讀檔失敗：{e}")
+
+    def _load_store_catalog_external(self):
+        # 從專案根目錄的 data/store_catalog.json 載入，失敗則回退到內建預設
+        try:
+            # modules/ 在上一層建立 data/
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            data_path = os.path.join(base_dir, 'data')
+            os.makedirs(data_path, exist_ok=True)
+            catalog_path = os.path.join(data_path, 'store_catalog.json')
+            if os.path.exists(catalog_path):
+                with open(catalog_path, 'r', encoding='utf-8') as f:
+                    cat = json.load(f)
+                if isinstance(cat, dict) and 'subscriptions' in cat and 'goods' in cat:
+                    return cat
+        except Exception:
+            pass
+        # 內建預設
+        return {
+            'subscriptions': {
+                'Netflix 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 15.0, 'frequency': 'monthly'},
+                'Spotify 訂閱': {'price': 0.0, 'type': 'subscription', 'amount': 10.0, 'frequency': 'monthly'},
+                '健身房會員': {'price': 0.0, 'type': 'subscription', 'amount': 30.0, 'frequency': 'monthly'},
+            },
+            'goods': {
+                '筆電': {'price': 800.0, 'type': 'goods'},
+                '自行車': {'price': 150.0, 'type': 'goods'},
+            }
+        }
 
     def is_valid(self):
         return self.balance is not None and self.cash is not None

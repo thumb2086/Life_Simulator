@@ -50,6 +50,12 @@ class BankGame:
         if hasattr(self, 'username') and self.username:
             self.leaderboard.add_record(self.username, self.data.total_assets(), self.data.days)
 
+        # 初始化商店/支出 UI（若 UI 已就緒）
+        try:
+            self.update_store_ui()
+        except Exception:
+            pass
+
     def create_ui(self):
         self.header = create_header_section(self.root, self)
         self.main_tabs = create_main_tabs(self.root, self)
@@ -75,11 +81,106 @@ class BankGame:
             if hasattr(self, 'expense_listbox'):
                 self.expense_listbox.delete(0, tk.END)
                 for exp in getattr(self.data, 'expenses', []):
-                    name = exp.get('name', '支出')
-                    amt = float(exp.get('amount', 0.0))
-                    freq = exp.get('frequency', 'daily')
-                    next_due = exp.get('next_due_day', '-')
-                    self.expense_listbox.insert(tk.END, f"{name} | ${amt:.2f} | {freq} | 下次第{next_due}天")
+                    self.expense_listbox.insert(tk.END, self._format_expense_row(exp))
+            # 計算支出總覽（換算成每日/每週/每月）
+            exps = getattr(self.data, 'expenses', [])
+            daily = weekly = monthly = 0.0
+            for e in exps:
+                amt = float(e.get('amount', 0.0))
+                freq = e.get('frequency', 'daily')
+                if freq == 'daily':
+                    daily += amt
+                    weekly += amt * 7
+                    monthly += amt * 30
+                elif freq == 'weekly':
+                    daily += amt / 7
+                    weekly += amt
+                    monthly += (amt / 7) * 30
+                else:  # monthly
+                    daily += amt / 30
+                    weekly += (amt / 30) * 7
+                    monthly += amt
+            if hasattr(self, 'expense_summary_label') and self.expense_summary_label is not None:
+                self.expense_summary_label.config(text=f"預估支出：每日 ${daily:.2f}｜每週 ${weekly:.2f}｜每月 ${monthly:.2f}")
+        except Exception:
+            pass
+
+    # 頻率對應天數（集中管理）
+    FREQ_DAYS = {'daily': 1, 'weekly': 7, 'monthly': 30}
+
+    # --- 共用小工具：集中重複邏輯 ---
+    def _freq_interval(self, frequency: str, default: int = 30) -> int:
+        return self.FREQ_DAYS.get(frequency, default)
+
+    def _append_expense(self, name: str, amount: float, frequency: str, today: int | None = None):
+        try:
+            if today is None:
+                today = self.data.days
+            interval = self._freq_interval(frequency, 30)
+            self.data.expenses.append({
+                'name': name,
+                'amount': float(amount),
+                'frequency': frequency,
+                'next_due_day': today + 1 + interval,
+            })
+            return True
+        except Exception as e:
+            self.debug_log(f"_append_expense error: {e}")
+            return False
+
+    def _refresh_and_persist(self, update_store: bool = False, update_display: bool = False):
+        try:
+            self.update_expenses_ui()
+            if update_store:
+                self.update_store_ui()
+            if update_display:
+                self.update_display()
+            self._pending_save = True
+            self.schedule_persist()
+        except Exception as e:
+            self.debug_log(f"_refresh_and_persist error: {e}")
+
+    def _is_subscribed(self, name: str) -> bool:
+        return any(e.get('name') == name for e in getattr(self.data, 'expenses', []))
+
+    def _format_expense_row(self, exp: dict) -> str:
+        try:
+            name = exp.get('name', '支出')
+            amt = float(exp.get('amount', 0.0))
+            freq = exp.get('frequency', 'daily')
+            next_due = exp.get('next_due_day', '-')
+            return f"{name} | ${amt:.2f} | {freq} | 下次第{next_due}天"
+        except Exception:
+            return str(exp)
+
+    def _populate_listbox(self, widget, rows):
+        try:
+            if not hasattr(self, widget) or getattr(self, widget) is None:
+                return
+            lb = getattr(self, widget)
+            lb.delete(0, tk.END)
+            for r in rows:
+                lb.insert(tk.END, r)
+        except Exception as e:
+            self.debug_log(f"_populate_listbox error: {e}")
+
+    def _get_selected_index(self, widget) -> int | None:
+        try:
+            if not hasattr(self, widget) or getattr(self, widget) is None:
+                return None
+            lb = getattr(self, widget)
+            sel = lb.curselection()
+            if not sel:
+                return None
+            return sel[0]
+        except Exception:
+            return None
+
+    def _notify(self, msg: str, also_event: bool = True):
+        try:
+            self.log_transaction(msg)
+            if also_event and hasattr(self, 'show_event_message'):
+                self.show_event_message(msg)
         except Exception:
             pass
 
@@ -95,35 +196,166 @@ class BankGame:
                 self.show_event_message("金額格式錯誤！")
                 return
             freq = self.expense_freq_var.get().strip() or 'daily'
-            interval = {'daily':1,'weekly':7,'monthly':30}.get(freq,1)
-            today = self.data.days
-            self.data.expenses.append({
-                'name': name,
-                'amount': amount,
-                'frequency': freq,
-                'next_due_day': today + 1 + interval,  # 下一個週期的日子
-            })
+            self._append_expense(name, amount, freq)
             self.log_transaction(f"新增支出：{name} ${amount:.2f} ({freq})")
-            self.update_expenses_ui()
-            self._pending_save = True
-            self.schedule_persist()
+            self._refresh_and_persist()
         except Exception as e:
             self.debug_log(f"add_expense_from_ui error: {e}")
 
-    def delete_expense_from_ui(self):
+    # --- 商店與固定支出：邏輯層 ---
+    def ensure_default_expenses(self):
+        try:
+            if getattr(self.data, 'expense_defaults_added', False):
+                return
+            # 預設固定支出（以月計費）
+            defaults = [
+                {'name': '水電瓦斯', 'amount': 50.0, 'frequency': 'monthly'},
+                {'name': '網路費', 'amount': 25.0, 'frequency': 'monthly'},
+                {'name': '手機費', 'amount': 20.0, 'frequency': 'monthly'},
+            ]
+            today = self.data.days
+            freq_days = self.FREQ_DAYS
+            names_existing = {e.get('name') for e in getattr(self.data, 'expenses', [])}
+            for d in defaults:
+                if d['name'] in names_existing:
+                    continue
+                self._append_expense(d['name'], d['amount'], d['frequency'], today)
+                self.log_transaction(f"加入固定支出：{d['name']} ${d['amount']:.2f} ({d['frequency']})")
+            self.data.expense_defaults_added = True
+            self._refresh_and_persist()
+        except Exception as e:
+            self.debug_log(f"ensure_default_expenses error: {e}")
+
+    def subscribe_service(self, name, amount, frequency):
+        try:
+            # 若已存在相同名稱的支出，則不重複新增
+            for e in getattr(self.data, 'expenses', []):
+                if e.get('name') == name:
+                    self._notify(f"已訂閱：{name}")
+                    return False
+            self._append_expense(name, amount, frequency)
+            self.log_transaction(f"訂閱服務：{name} ${amount:.2f} ({frequency})")
+            self._refresh_and_persist(update_store=True)
+            return True
+        except Exception as e:
+            self.debug_log(f"subscribe_service error: {e}")
+            return False
+
+    def cancel_subscription(self, name):
+        try:
+            # 只允許取消商店中的訂閱類型
+            subs = set(self.data.store_catalog.get('subscriptions', {}).keys()) if isinstance(self.data.store_catalog, dict) else set()
+            if name not in subs:
+                self._notify("選取的支出不是訂閱項目！")
+                return False
+            exps = getattr(self.data, 'expenses', [])
+            idx_to_remove = next((i for i, e in enumerate(exps) if e.get('name') == name), None)
+            if idx_to_remove is None:
+                self._notify("找不到該訂閱於支出清單！")
+                return False
+            exp = exps.pop(idx_to_remove)
+            self.log_transaction(f"取消訂閱：{exp.get('name','')} 每{exp.get('frequency','-')} ${float(exp.get('amount',0.0)):.2f}")
+            self._refresh_and_persist(update_store=True)
+            return True
+        except Exception as e:
+            self.debug_log(f"cancel_subscription error: {e}")
+            return False
+
+    def cancel_subscription_from_ui(self):
         try:
             if not hasattr(self, 'expense_listbox'):
                 return
             sel = self.expense_listbox.curselection()
             if not sel:
+                self._notify("請先選擇要取消的訂閱！")
                 return
             idx = sel[0]
             if 0 <= idx < len(self.data.expenses):
+                name = self.data.expenses[idx].get('name', '')
+                self.cancel_subscription(name)
+        except Exception as e:
+            self.debug_log(f"cancel_subscription_from_ui error: {e}")
+
+    def buy_store_good(self, name, price):
+        try:
+            price = float(price)
+            if self.data.cash < price:
+                self.log_transaction(f"購買失敗（現金不足）：{name} 需要 ${price:.2f}")
+                return False
+            self.data.cash -= price
+            inv = getattr(self.data, 'inventory', [])
+            inv.append(name)
+            self.data.inventory = inv
+            self.log_transaction(f"購買物品：{name} 花費 ${price:.2f}")
+            self.update_store_ui()
+            self.update_display()
+            self._pending_save = True
+            self.schedule_persist()
+            return True
+        except Exception as e:
+            self.debug_log(f"buy_store_good error: {e}")
+            return False
+
+    # --- 商店：UI 綁定 ---
+    def update_store_ui(self):
+        try:
+            # 物品清單
+            if isinstance(self.data.store_catalog, dict):
+                goods_rows = [
+                    f"{name} | ${float(item.get('price',0.0)):.2f}"
+                    for name, item in self.data.store_catalog.get('goods', {}).items()
+                ]
+                self._populate_listbox('store_goods_list', goods_rows)
+                # 訂閱清單
+                subscribed = {e.get('name') for e in getattr(self.data, 'expenses', [])}
+                subs_rows = []
+                for name, item in self.data.store_catalog.get('subscriptions', {}).items():
+                    amt = float(item.get('amount', 0.0))
+                    freq = item.get('frequency', 'monthly')
+                    tag = " [已訂閱]" if name in subscribed else ""
+                    subs_rows.append(f"{name} | ${amt:.2f}/{freq}{tag}")
+                self._populate_listbox('store_subs_list', subs_rows)
+            # 物品欄
+            inv_rows = [f"{it}" for it in getattr(self.data, 'inventory', [])]
+            self._populate_listbox('inventory_list', inv_rows)
+        except Exception:
+            pass
+
+    def subscribe_selected_from_ui(self):
+        try:
+            idx = self._get_selected_index('store_subs_list')
+            if idx is None:
+                return
+            names = list(self.data.store_catalog.get('subscriptions', {}).keys())
+            if 0 <= idx < len(names):
+                name = names[idx]
+                cfg = self.data.store_catalog['subscriptions'][name]
+                self.subscribe_service(name, cfg.get('amount', 0.0), cfg.get('frequency', 'monthly'))
+        except Exception as e:
+            self.debug_log(f"subscribe_selected_from_ui error: {e}")
+
+    def buy_selected_good_from_ui(self):
+        try:
+            idx = self._get_selected_index('store_goods_list')
+            if idx is None:
+                return
+            names = list(self.data.store_catalog.get('goods', {}).keys())
+            if 0 <= idx < len(names):
+                name = names[idx]
+                price = self.data.store_catalog['goods'][name].get('price', 0.0)
+                self.buy_store_good(name, price)
+        except Exception as e:
+            self.debug_log(f"buy_selected_good_from_ui error: {e}")
+
+    def delete_expense_from_ui(self):
+        try:
+            idx = self._get_selected_index('expense_listbox')
+            if idx is None:
+                return
+            if 0 <= idx < len(self.data.expenses):
                 exp = self.data.expenses.pop(idx)
                 self.log_transaction(f"刪除支出：{exp.get('name','支出')} ${float(exp.get('amount',0.0)):.2f}")
-                self.update_expenses_ui()
-                self._pending_save = True
-                self.schedule_persist()
+                self._refresh_and_persist()
         except Exception as e:
             self.debug_log(f"delete_expense_from_ui error: {e}")
 
@@ -158,6 +390,8 @@ class BankGame:
         self.update_expenses_ui()
         # 更新基金/ETF UI
         self.update_funds_ui()
+        # 更新商店/物品欄 UI
+        self.update_store_ui()
         self.update_charts()
         self.update_achievements_list()
         # 將頻繁 I/O 轉為延遲合併寫入
