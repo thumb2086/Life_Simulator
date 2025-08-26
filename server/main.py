@@ -11,7 +11,7 @@ import random
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "app.db"))
 API_KEY_EXPECTED = os.getenv("API_KEY", "dev-local-key")
 
-app = FastAPI(title="Stock Game Server", version="1.0.0")
+app = FastAPI(title="Life_Simulator Server", version="1.0.0")
 
 
 def get_db():
