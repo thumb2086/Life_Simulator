@@ -655,10 +655,23 @@ class BankGame:
                     if self.data.days >= stock.get('next_dividend_day', 30):
                         if stock['owned'] > 0 and stock.get('dividend_per_share', 0) > 0:
                             dividend = stock['owned'] * stock['dividend_per_share']
-                            self.data.cash += dividend
-                            msg = f"{stock['name']} 配息：持有 {stock['owned']} 股，獲得股息 ${dividend:.2f}"
-                            self.log_transaction(msg)
-                            self.show_event_message(msg)
+                            # DRIP：若啟用則優先再投資購買同檔股票
+                            if stock.get('drip'):
+                                price = float(stock.get('price', 0.0)) or 0.0
+                                shares = int(dividend // price) if price > 0 else 0
+                                leftover = dividend - shares * price
+                                if shares > 0:
+                                    self._buy_stock_by_code(code, shares, log_prefix="DRIP再投資")
+                                if leftover > 0:
+                                    self.data.cash += leftover
+                                msg = f"{stock['name']} 配息（DRIP）：配息 ${dividend:.2f}，再投資買入 {shares} 股，餘額 ${leftover:.2f}"
+                                self.log_transaction(msg)
+                                self.show_event_message(msg)
+                            else:
+                                self.data.cash += dividend
+                                msg = f"{stock['name']} 配息：持有 {stock['owned']} 股，獲得股息 ${dividend:.2f}"
+                                self.log_transaction(msg)
+                                self.show_event_message(msg)
                         stock['next_dividend_day'] = self.data.days + stock.get('dividend_interval', 30)
                 # 比特幣價格隨機波動
                 btc = self.data.stocks['BTC']
@@ -671,6 +684,12 @@ class BankGame:
                     mined = hashrate * 0.01  # 每30秒產生的比特幣數量，可調整
                     self.data.btc_balance += mined
                     self.log_transaction(f"礦機自動挖礦，獲得比特幣 {mined:.4f}")
+                # 創業/定投：每日處理
+                try:
+                    self._process_business_daily()
+                    self._process_auto_invest_daily()
+                except Exception as e:
+                    self.debug_log(f"auto features error: {e}")
                 # 每日結束時也更新一次基金 NAV 並記錄歷史
                 self.compute_fund_navs(record_history=True)
                 self.update_display()
@@ -683,24 +702,19 @@ class BankGame:
             # 檢測節拍漂移：距離上次 unified 呼叫的時間是否明顯超過 1000ms
             now = time.perf_counter()
             delta_ms = (now - getattr(self, '_last_unified_at', now)) * 1000
-            drift_ms = max(0.0, delta_ms - 1000.0)
             self._last_unified_at = now
-            ids_count = len(getattr(self, '_after_ids', []))
-            map_count = len(getattr(self, '_after_map', {}))
-            self.debug_log(f"unified_timer tick={self._unified_timer_tick} end, exec={dt:.1f} ms, delta={delta_ms:.1f} ms, drift={drift_ms:.1f} ms, after_ids={ids_count}, after_map={map_count}")
-            if ids_count > 200:
-                self.debug_log(f"WARNING: after_ids ballooning: {ids_count}")
-            # 持續循環（包裝在 _run_task 以便錯誤隔離與耗時紀錄）
+            drift_ms = delta_ms - 1000.0
+            # 紀錄執行資訊
+            try:
+                ids_count = len(getattr(self, '_after_ids', []))
+                map_count = len(getattr(self, '_after_map', {}))
+            except Exception:
+                ids_count = map_count = 0
+            self.debug_log(f"unified_timer end, exec={dt:.1f} ms, delta={delta_ms:.1f} ms, drift={drift_ms:.1f} ms, after_ids={ids_count}, after_map={map_count}")
+            # 重新排程下一次
             aid = self.root.after(1000, lambda: self._run_task('unified', self.unified_timer))
             self._after_map['unified'] = aid
             self._after_ids.append(aid)
-
-    def start_event_timer(self):
-        delay = random.randint(20000, 40000)
-        aid = self.root.after(delay, lambda: self._run_task('event', self.trigger_event))
-        self._after_map['event'] = aid
-        self._after_ids.append(aid)
-        self.debug_log(f"schedule event after {delay} ms -> id={aid}")
 
     def update_time(self):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -709,6 +723,228 @@ class BankGame:
         self._after_map['time'] = aid
         self._after_ids.append(aid)
         self.debug_log(f"schedule time after 1000 ms -> id={aid}")
+
+    # --- Auto-Invest/DRIP/Business：邏輯層與 UI 綁定 ---
+    def _buy_stock_by_code(self, code: str, shares: int, log_prefix: str = "買入"):
+        try:
+            if shares <= 0:
+                return False
+            if code not in self.data.stocks:
+                return False
+            s = self.data.stocks[code]
+            price = float(s.get('price', 0.0))
+            cost = shares * price
+            if self.data.cash < cost:
+                return False
+            s['owned'] = int(s.get('owned', 0)) + shares
+            s['total_cost'] = float(s.get('total_cost', 0.0)) + cost
+            self.data.cash -= cost
+            idx = len(s.get('history', [])) - 1
+            s.setdefault('buy_points', []).append((idx, price))
+            self.log_transaction(f"{log_prefix} {shares} 股 {s.get('name', code)}，單價 ${price:.2f}，花費 ${cost:.2f}")
+            return True
+        except Exception as e:
+            self.debug_log(f"_buy_stock_by_code error: {e}")
+            return False
+
+    def _ensure_auto_structs(self):
+        if not hasattr(self.data, 'dca_stocks') or not isinstance(self.data.dca_stocks, dict):
+            self.data.dca_stocks = {}
+        if not hasattr(self.data, 'dca_funds') or not isinstance(self.data.dca_funds, dict):
+            self.data.dca_funds = {}
+        if not hasattr(self.data, 'businesses') or not isinstance(self.data.businesses, list):
+            self.data.businesses = []
+
+    def _process_auto_invest_daily(self):
+        self._ensure_auto_structs()
+        today = getattr(self.data, 'days', 0)
+        # 股票定投
+        for code, cfg in list(self.data.dca_stocks.items()):
+            try:
+                amount = float(cfg.get('amount_cash', 0.0))
+                next_day = int(cfg.get('next_day', today))
+                interval = int(cfg.get('interval_days', 30))
+                if today >= next_day and amount > 0 and code in self.data.stocks:
+                    price = float(self.data.stocks[code].get('price', 0.0))
+                    shares = int(amount // price) if price > 0 else 0
+                    if shares > 0 and self._buy_stock_by_code(code, shares, log_prefix="定投買入"):
+                        cfg['next_day'] = today + interval
+                    else:
+                        cfg['next_day'] = today + 1
+            except Exception as e:
+                self.debug_log(f"dca_stock error({code}): {e}")
+        # 基金定投
+        for fname, cfg in list(self.data.dca_funds.items()):
+            try:
+                amount = float(cfg.get('amount_cash', 0.0))
+                next_day = int(cfg.get('next_day', today))
+                interval = int(cfg.get('interval_days', 30))
+                f = getattr(self.data, 'funds', {}).get(fname)
+                finfo = getattr(self.data, 'funds_catalog', {}).get(fname)
+                if not isinstance(f, dict) or not isinstance(finfo, dict):
+                    continue
+                if today >= next_day and amount > 0:
+                    nav = float(f.get('nav', 100.0))
+                    fee_rate = float(finfo.get('fee_rate', 0.0))
+                    denom = nav * (1.0 + fee_rate)
+                    units = amount / denom if denom > 0 else 0.0
+                    if units > 0 and self.data.cash >= amount:
+                        f['units'] = float(f.get('units', 0.0)) + units
+                        f['total_cost'] = float(f.get('total_cost', 0.0)) + (units * nav)
+                        self.data.cash -= amount
+                        self.log_transaction(f"定投買入基金 {fname} {units:.4f} 單位，NAV ${nav:.4f}，投入現金 ${amount:.2f}")
+                        cfg['next_day'] = today + interval
+                    else:
+                        cfg['next_day'] = today + 1
+            except Exception as e:
+                self.debug_log(f"dca_fund error({fname}): {e}")
+
+    def _process_business_daily(self):
+        self._ensure_auto_structs()
+        total_net = 0.0
+        try:
+            for b in self.data.businesses:
+                rev = float(b.get('revenue_per_day', 0.0))
+                cost = float(b.get('cost_per_day', 0.0))
+                net = rev - cost
+                total_net += net
+            if abs(total_net) > 1e-9:
+                self.data.cash += total_net
+                self.log_transaction(f"創業收益（淨額） ${total_net:.2f}")
+        except Exception as e:
+            self.debug_log(f"_process_business_daily error: {e}")
+
+    # 以下為 UI 綁定（由 ui_sections 建立之控制項呼叫）
+    def ui_add_or_update_dca_stock(self):
+        try:
+            self._ensure_auto_structs()
+            if not hasattr(self, 'dca_stock_code_var'):
+                return
+            code = self.dca_stock_code_var.get().strip()
+            amt_str = self.dca_stock_amount_var.get().strip() if hasattr(self, 'dca_stock_amount_var') else ''
+            freq = self.dca_stock_freq_var.get().strip() if hasattr(self, 'dca_stock_freq_var') else 'monthly'
+            amount = float(amt_str)
+            interval = {'daily':1,'weekly':7,'monthly':30}.get(freq, 30)
+            today = getattr(self.data, 'days', 0)
+            self.data.dca_stocks[code] = {'amount_cash': amount, 'interval_days': interval, 'next_day': today + interval}
+            self.log_transaction(f"設定股票定投：{code} 每{freq} 投入 ${amount:.2f}")
+            self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_add_or_update_dca_stock error: {e}")
+
+    def ui_remove_dca_stock(self):
+        try:
+            self._ensure_auto_structs()
+            if not hasattr(self, 'dca_stock_list'):
+                return
+            sel = self.dca_stock_list.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            keys = list(self.data.dca_stocks.keys())
+            if 0 <= idx < len(keys):
+                code = keys[idx]
+                self.data.dca_stocks.pop(code, None)
+                self.log_transaction(f"移除股票定投：{code}")
+                self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_remove_dca_stock error: {e}")
+
+    def ui_add_or_update_dca_fund(self):
+        try:
+            self._ensure_auto_structs()
+            if not hasattr(self, 'dca_fund_name_var'):
+                return
+            name = self.dca_fund_name_var.get().strip()
+            amt_str = self.dca_fund_amount_var.get().strip() if hasattr(self, 'dca_fund_amount_var') else ''
+            freq = self.dca_fund_freq_var.get().strip() if hasattr(self, 'dca_fund_freq_var') else 'monthly'
+            amount = float(amt_str)
+            interval = {'daily':1,'weekly':7,'monthly':30}.get(freq, 30)
+            today = getattr(self.data, 'days', 0)
+            self.data.dca_funds[name] = {'amount_cash': amount, 'interval_days': interval, 'next_day': today + interval}
+            self.log_transaction(f"設定基金定投：{name} 每{freq} 投入 ${amount:.2f}")
+            self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_add_or_update_dca_fund error: {e}")
+
+    def ui_remove_dca_fund(self):
+        try:
+            self._ensure_auto_structs()
+            if not hasattr(self, 'dca_fund_list'):
+                return
+            sel = self.dca_fund_list.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            keys = list(self.data.dca_funds.keys())
+            if 0 <= idx < len(keys):
+                name = keys[idx]
+                self.data.dca_funds.pop(name, None)
+                self.log_transaction(f"移除基金定投：{name}")
+                self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_remove_dca_fund error: {e}")
+
+    def ui_toggle_drip(self):
+        try:
+            if not hasattr(self, 'drip_stock_code_var'):
+                return
+            code = self.drip_stock_code_var.get().strip()
+            val = bool(self.drip_enable_var.get()) if hasattr(self, 'drip_enable_var') else False
+            if code in self.data.stocks:
+                self.data.stocks[code]['drip'] = val
+                self.log_transaction(f"{code} DRIP {'開啟' if val else '關閉'}")
+        except Exception as e:
+            self.debug_log(f"ui_toggle_drip error: {e}")
+
+    def update_auto_invest_ui(self):
+        try:
+            if hasattr(self, 'dca_stock_list') and self.dca_stock_list is not None:
+                self.dca_stock_list.delete(0, tk.END)
+                for code, cfg in getattr(self.data, 'dca_stocks', {}).items():
+                    self.dca_stock_list.insert(tk.END, f"{code} | ${float(cfg.get('amount_cash',0.0)):.2f} / {int(cfg.get('interval_days',30))}天 | 下次第{int(cfg.get('next_day',0))}天")
+            if hasattr(self, 'dca_fund_list') and self.dca_fund_list is not None:
+                self.dca_fund_list.delete(0, tk.END)
+                for name, cfg in getattr(self.data, 'dca_funds', {}).items():
+                    self.dca_fund_list.insert(tk.END, f"{name} | ${float(cfg.get('amount_cash',0.0)):.2f} / {int(cfg.get('interval_days',30))}天 | 下次第{int(cfg.get('next_day',0))}天")
+            if hasattr(self, 'business_list') and self.business_list is not None:
+                self.business_list.delete(0, tk.END)
+                for b in getattr(self.data, 'businesses', []):
+                    name = b.get('name','事業')
+                    lvl = int(b.get('level',1))
+                    rev = float(b.get('revenue_per_day',0.0))
+                    cost = float(b.get('cost_per_day',0.0))
+                    self.business_list.insert(tk.END, f"{name} Lv.{lvl} | 收入 ${rev:.2f} | 成本 ${cost:.2f} | 淨額 ${rev-cost:.2f}")
+        except Exception as e:
+            self.debug_log(f"update_auto_invest_ui error: {e}")
+
+    def ui_add_business(self):
+        try:
+            self._ensure_auto_structs()
+            name = self.biz_name_var.get().strip() if hasattr(self, 'biz_name_var') else '事業'
+            rev = float(self.biz_rev_var.get().strip()) if hasattr(self, 'biz_rev_var') else 0.0
+            cost = float(self.biz_cost_var.get().strip()) if hasattr(self, 'biz_cost_var') else 0.0
+            self.data.businesses.append({'name': name, 'level': 1, 'revenue_per_day': rev, 'cost_per_day': cost, 'next_upgrade_cost': max(100.0, rev*10)})
+            self.log_transaction(f"創立事業：{name}（收入 ${rev:.2f} / 成本 ${cost:.2f}）")
+            self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_add_business error: {e}")
+
+    def ui_remove_business(self):
+        try:
+            self._ensure_auto_structs()
+            if not hasattr(self, 'business_list'):
+                return
+            sel = self.business_list.curselection()
+            if not sel:
+                return
+            idx = sel[0]
+            if 0 <= idx < len(self.data.businesses):
+                b = self.data.businesses.pop(idx)
+                self.log_transaction(f"關閉事業：{b.get('name','事業')}")
+                self.update_auto_invest_ui()
+        except Exception as e:
+            self.debug_log(f"ui_remove_business error: {e}")
 
     # --- 操作邏輯 ---
     def get_amount(self, min_value=1, max_value=100000000):

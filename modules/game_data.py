@@ -26,6 +26,9 @@ class GameData:
             'TRAVEL': {'name': '旅遊公司', 'industry': '服務業', 'price': 75, 'owned': 0, 'total_cost': 0, 'history': [75], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.9, 'dividend_interval': 30, 'next_dividend_day': 30},
             'BTC': {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
         }
+        # 每檔股票新增 DRIP（股息再投資）開關，預設 False
+        for code, stock in self.stocks.items():
+            stock['drip'] = False
         self.btc_balance = 0.0
         self.btc_miner_count = 0
         self.btc_hashrate = 0.0
@@ -64,6 +67,14 @@ class GameData:
         self.store_catalog = self._load_store_catalog_external()
 
         self.inventory = []
+        # --- Auto-Invest (DCA) 設定 ---
+        # 股票定投：{code: {amount_cash: float, interval_days: int, next_day: int}}
+        self.dca_stocks = {}
+        # 基金定投：{fname: {amount_cash: float, interval_days: int, next_day: int}}
+        self.dca_funds = {}
+        # --- Entrepreneurship (創業) ---
+        # 簡單的創業結構：[{name, level, revenue_per_day, cost_per_day, next_upgrade_cost}]
+        self.businesses = []
         # --- Funds/ETF 預設欄位 ---
         # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
         self.funds_catalog = {
@@ -143,6 +154,8 @@ class GameData:
                     stock['buy_points'] = []
                 if 'sell_points' not in stock:
                     stock['sell_points'] = []
+                if 'drip' not in stock:
+                    stock['drip'] = False
 
             # 補齊新加入的 btc 參數
             if not hasattr(self, 'btc_mining_rate_per_kh'):
@@ -209,6 +222,14 @@ class GameData:
                 # 基準價格若不存在，以當前股價建立，避免除以零
                 if 'base_prices' not in f or not f.get('base_prices'):
                     f['base_prices'] = {code: self.stocks[code]['price'] for code in finfo['weights'].keys() if code in self.stocks}
+
+            # --- 補齊 Auto-Invest / Entrepreneurship 欄位 ---
+            if not hasattr(self, 'dca_stocks'):
+                self.dca_stocks = {}
+            if not hasattr(self, 'dca_funds'):
+                self.dca_funds = {}
+            if not hasattr(self, 'businesses'):
+                self.businesses = []
 
             if hasattr(self, 'achievements_manager'):
                 self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器
