@@ -134,7 +134,7 @@ class SlotMachine:
                 if hasattr(self.game, 'username'):
                     CasinoLeaderboard().add_casino_record(self.game.username, winnings)
             except Exception as e:
-                print("CasinoLeaderboard error:", e)
+                self.game.debug_log(f"CasinoLeaderboard error: {e}")
 
         # 動畫效果
         for i, num in enumerate(results):

@@ -157,7 +157,7 @@ def create_main_tabs(root, game):
                     os.remove(savefile_old)
                     removed = True
                 if not removed:
-                    print(f"找不到檔案: {savefile_new} 或 {savefile_old}")  # 除錯用
+                    game.debug_log(f"找不到檔案: {savefile_new} 或 {savefile_old}")  # 除錯用
                 # 更新排行榜資料（只保留現有帳號）
                 usernames_valid = set(get_all_usernames())
                 if os.path.exists('leaderboard.json'):

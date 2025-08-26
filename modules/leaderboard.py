@@ -2,6 +2,7 @@
 
 import json
 import os
+import logging
 
 class Leaderboard:
     def __init__(self, filename='leaderboard.json'):
@@ -36,11 +37,11 @@ class Leaderboard:
                     return [] # 檔案存在但為空，返回空列表
             except json.JSONDecodeError:
                 # 處理檔案內容為無效 JSON 的情況 (例如只有空格或部分內容)
-                print(f"警告: {self.filename} 檔案內容無效，將重置為空列表。")
+                logging.warning(f"警告: {self.filename} 檔案內容無效，將重置為空列表。")
                 return []
             except Exception as e:
                 # 處理其他可能的讀取錯誤
-                print(f"讀取 {self.filename} 時發生未知錯誤: {e}")
+                logging.error(f"讀取 {self.filename} 時發生未知錯誤: {e}")
                 return []
         return [] # 檔案不存在，返回空列表
 

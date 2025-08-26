@@ -150,6 +150,6 @@ class ReportsChartsManager:
                 # 移除每次更新時的滑鼠事件重綁，事件在建立圖表時已綁定
                 updated += 1
             except Exception as e:
-                print(f"股票圖表更新失敗: {k}, 錯誤: {e}")
+                g.debug_log(f"股票圖表更新失敗: {k}, 錯誤: {e}")
         dt = (time.perf_counter() - t0) * 1000
         g.debug_log(f"update_charts: updated={updated}, skipped={skipped}, {dt:.1f} ms")

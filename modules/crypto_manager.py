@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import random
+from config import BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE
 
 class CryptoManager:
     def __init__(self, game):
@@ -104,6 +106,35 @@ class CryptoManager:
         self.game.axes['BTC'] = self.btc_ax
         self.game.canvases['BTC'] = self.btc_canvas
         self.game.chart_ranges['BTC'] = self.btc_range_var
+
+    def on_daily_tick(self):
+        """
+        Daily crypto updates:
+        - Random BTC price movement and history append
+        - Mining yield based on hashrate
+        - Refresh BTC info labels
+        """
+        try:
+            btc = self.game.data.stocks.get('BTC')
+            if not btc:
+                return
+            # 價格隨機波動
+            btc_change = random.gauss(0, BTC_VOLATILITY)
+            btc['price'] = max(BTC_MIN_PRICE, round(btc['price'] * (1 + btc_change)))
+            btc.setdefault('history', []).append(btc['price'])
+            # 自動產出比特幣
+            hashrate = getattr(self.game.data, 'btc_hashrate', 0)
+            if hashrate > 0:
+                mined = hashrate * CRYPTO_MINED_PER_HASHRATE
+                self.game.data.btc_balance = getattr(self.game.data, 'btc_balance', 0) + mined
+            # 更新顯示
+            if self.btc_info_label is not None:
+                self.update_btc_info()
+        except Exception as e:
+            try:
+                self.game.debug_log(f"crypto on_daily_tick error: {e}")
+            except Exception:
+                pass
 
     def update_btc_info(self):
         btc = self.game.data.stocks['BTC']

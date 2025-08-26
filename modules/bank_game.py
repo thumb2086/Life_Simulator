@@ -18,6 +18,7 @@ from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
 from dividend_manager import DividendManager
+from config import UNIFIED_TICK_MS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, PERSIST_DEBOUNCE_MS, STOCK_UPDATE_TICKS, MONTH_DAYS
 
 class BankGame:
     def __init__(self, root, data=None):
@@ -75,6 +76,27 @@ class BankGame:
             self.update_store_ui()
         except Exception:
             pass
+        # 初始化合併寫入與 UI 防抖旗標
+        self._persist_scheduled = False
+        self._pending_leaderboard = False
+        self._pending_save = False
+        self._ui_update_scheduled = False
+
+    # 將頻繁的 UI 刷新合併，避免 UI thrash
+    def schedule_ui_update(self, delay_ms=0):
+        try:
+            if self._ui_update_scheduled:
+                return
+        except Exception:
+            self._ui_update_scheduled = False
+        def _do_update():
+            self._ui_update_scheduled = False
+            self.update_display()
+        aid = self.root.after(delay_ms, lambda: self._run_task('ui_update', _do_update))
+        self._after_map['ui_update'] = aid
+        self._after_ids.append(aid)
+        self._ui_update_scheduled = True
+        self.debug_log(f"schedule ui_update after {delay_ms} ms -> id={aid}")
 
     def create_ui(self):
         self.header = create_header_section(self.root, self)
@@ -199,7 +221,7 @@ class BankGame:
         self._unified_timer_tick = 0
         # 用於檢測 unified_timer 的節拍漂移（事件迴圈延遲）
         self._last_unified_at = time.perf_counter()
-        aid = self.root.after(1000, lambda: self._run_task('unified', self.unified_timer))
+        aid = self.root.after(UNIFIED_TICK_MS, lambda: self._run_task('unified', self.unified_timer))
         self._after_map['unified'] = aid
         self._after_ids.append(aid)
         self.update_time()
@@ -210,8 +232,8 @@ class BankGame:
             self._unified_timer_tick += 1
             tick = self._unified_timer_tick
             self.debug_log(f"unified_timer tick={tick} start")
-            # 每 15 秒執行股票更新
-            if tick % 15 == 0:
+            # 依設定的節拍次數執行股票更新
+            if tick % STOCK_UPDATE_TICKS == 0:
                 for stock in self.data.stocks.values():
                     change_percent = random.gauss(0, self.data.market_volatility)
                     new_price = stock['price'] * (1 + change_percent)
@@ -220,7 +242,7 @@ class BankGame:
                     stock['history'].append(new_price)
                 # 股票更新後，同步更新基金 NAV
                 self.compute_fund_navs()
-                self.update_display()
+                self.schedule_ui_update()
             # 每 self.DAY_TICKS 秒執行：利息、配息、礦機、每日結算（視為一天）
             if tick % self.DAY_TICKS == 0:
                 if self.data.balance > 0:
@@ -301,17 +323,12 @@ class BankGame:
                     self.dividends.process_daily()
                 except Exception as e:
                     self.debug_log(f"dividend manager error: {e}")
-                # 比特幣價格隨機波動
-                btc = self.data.stocks['BTC']
-                btc_change = random.gauss(0, 0.03)
-                btc['price'] = max(10000, round(btc['price'] * (1 + btc_change)))
-                btc['history'].append(btc['price'])
-                # 自動產生比特幣
-                hashrate = getattr(self.data, 'btc_hashrate', 0)
-                if hashrate > 0:
-                    mined = hashrate * 0.01  # 每30秒產生的比特幣數量，可調整
-                    self.data.btc_balance += mined
-                    self.log_transaction(f"礦機自動挖礦，獲得比特幣 {mined:.4f}")
+                # 加密貨幣每日邏輯委派到 CryptoManager（若已建立）
+                try:
+                    if hasattr(self, 'crypto_manager') and self.crypto_manager:
+                        self.crypto_manager.on_daily_tick()
+                except Exception as e:
+                    self.debug_log(f"crypto manager error: {e}")
                 # 創業/定投：每日處理
                 try:
                     # 創業每日淨額
@@ -320,18 +337,18 @@ class BankGame:
                     self.debug_log(f"auto features error: {e}")
                 # 每日結束時也更新一次基金 NAV 並記錄歷史
                 self.compute_fund_navs(record_history=True)
-                self.update_display()
+                self.schedule_ui_update()
             # 破產偵測
             self.check_bankruptcy_and_reborn()
         except Exception as e:
             self.debug_log(f"unified_timer exception: {e}")
         finally:
             dt = (time.perf_counter() - t0) * 1000
-            # 檢測節拍漂移：距離上次 unified 呼叫的時間是否明顯超過 1000ms
+            # 檢測節拍漂移：距離上次 unified 呼叫的時間是否明顯超過 UNIFIED_TICK_MS
             now = time.perf_counter()
             delta_ms = (now - getattr(self, '_last_unified_at', now)) * 1000
             self._last_unified_at = now
-            drift_ms = delta_ms - 1000.0
+            drift_ms = delta_ms - float(UNIFIED_TICK_MS)
             # 紀錄執行資訊
             try:
                 ids_count = len(getattr(self, '_after_ids', []))
@@ -340,25 +357,25 @@ class BankGame:
                 ids_count = map_count = 0
             self.debug_log(f"unified_timer end, exec={dt:.1f} ms, delta={delta_ms:.1f} ms, drift={drift_ms:.1f} ms, after_ids={ids_count}, after_map={map_count}")
             # 重新排程下一次
-            aid = self.root.after(1000, lambda: self._run_task('unified', self.unified_timer))
+            aid = self.root.after(UNIFIED_TICK_MS, lambda: self._run_task('unified', self.unified_timer))
             self._after_map['unified'] = aid
             self._after_ids.append(aid)
 
     def update_time(self):
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.time_label.config(text=f"當前時間: {current_time}")
-        aid = self.root.after(1000, lambda: self._run_task('time', self.update_time))
+        aid = self.root.after(TIME_LABEL_MS, lambda: self._run_task('time', self.update_time))
         self._after_map['time'] = aid
         self._after_ids.append(aid)
-        self.debug_log(f"schedule time after 1000 ms -> id={aid}")
+        self.debug_log(f"schedule time after {TIME_LABEL_MS} ms -> id={aid}")
 
     # --- 遊戲日數顯示 ---
     def update_game_day_label(self):
         try:
             if hasattr(self, 'game_day_label') and self.game_day_label is not None:
                 days = int(getattr(self.data, 'days', 0))
-                month = days // 30 + 1
-                day_in_month = days % 30 + 1
+                month = days // MONTH_DAYS + 1
+                day_in_month = days % MONTH_DAYS + 1
                 self.game_day_label.config(text=f"遊戲日數：第 {days} 天（第 {month} 月 第 {day_in_month} 天）")
         except Exception:
             pass
@@ -1000,25 +1017,36 @@ class BankGame:
 
     def start_leaderboard_refresh(self):
         self.show_leaderboard()
-        aid = self.root.after(10000, lambda: self._run_task('leaderboard', self.start_leaderboard_refresh))
+        aid = self.root.after(LEADERBOARD_REFRESH_MS, lambda: self._run_task('leaderboard', self.start_leaderboard_refresh))
         self._after_map['leaderboard'] = aid
         if hasattr(self, '_after_ids'):
             self._after_ids.append(aid)
-        self.debug_log(f"schedule leaderboard after 10000 ms -> id={aid}")
+        self.debug_log(f"schedule leaderboard after {LEADERBOARD_REFRESH_MS} ms -> id={aid}")
 
     def update_stock_info_label(self):
         pass 
 
     # 將頻繁 I/O 合併並延遲寫入，降低 UI 卡頓
-    def schedule_persist(self, delay_ms=10000):
-        if self._persist_scheduled:
-            return
+    def schedule_persist(self, delay_ms=PERSIST_DEBOUNCE_MS):
+        # 若已存在排程，取消並重新排程（真正的 debounce：以最後一次觸發為準）
+        try:
+            if getattr(self, '_persist_scheduled', False):
+                old_id = self._after_map.get('persist')
+                if old_id is not None:
+                    try:
+                        self.root.after_cancel(old_id)
+                        self.debug_log(f"after_cancel name=persist id={old_id}")
+                    except Exception:
+                        pass
+        except Exception:
+            self._persist_scheduled = False
         def _flush():
             self._persist_scheduled = False
             self.persist_state()
         aid = self.root.after(delay_ms, lambda: self._run_task('persist', _flush))
         self._after_map['persist'] = aid
-        self._after_ids.append(aid)
+        if hasattr(self, '_after_ids'):
+            self._after_ids.append(aid)
         self._persist_scheduled = True
         self.debug_log(f"schedule persist after {delay_ms} ms -> id={aid}")
 

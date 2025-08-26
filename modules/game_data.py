@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 
 
 class GameData:
@@ -114,7 +115,7 @@ class GameData:
             if show_error:
                 show_error(f"存檔失敗：{e}")
             else:
-                print(f"存檔失敗：{e}")
+                logging.error(f"存檔失敗：{e}")
 
 
     def load(self, file_path, show_error=None):
@@ -237,7 +238,7 @@ class GameData:
             if show_error:
                 show_error(f"讀檔失敗：{e}")
             else:
-                print(f"讀檔失敗：{e}")
+                logging.error(f"讀檔失敗：{e}")
 
     def _load_store_catalog_external(self):
         # 從專案根目錄的 data/store_catalog.json 載入，失敗則回退到內建預設
