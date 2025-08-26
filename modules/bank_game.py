@@ -1,4 +1,4 @@
-from ui_sections import *
+from ui_sections import create_header_section, create_main_tabs
 from theme_manager import ThemeManager
 from game_data import GameData
 from slot_machine import SlotMachine
@@ -17,6 +17,7 @@ from reports_charts import ReportsChartsManager
 from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
+from dividend_manager import DividendManager
 
 class BankGame:
     def __init__(self, root, data=None):
@@ -50,6 +51,8 @@ class BankGame:
         self.logger = GameLogger(self)
         # 工作/薪資管理器
         self.jobs = JobManager(self)
+        # 股利/DRIP 管理器
+        self.dividends = DividendManager(self)
         self.create_ui()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
@@ -83,6 +86,12 @@ class BankGame:
         self.stock_dividend_labels = getattr(self, 'stock_dividend_labels', {})
         # 初始更新天數顯示
         self.update_game_day_label()
+        # 主題套用至所有 tk/ttk 元件（建立 UI 後呼叫）
+        try:
+            if hasattr(self, 'theme') and self.theme:
+                self.theme.apply_to_game(self)
+        except Exception:
+            pass
 
     # --- 偵錯工具 ---
     def debug_log(self, msg):
@@ -287,28 +296,11 @@ class BankGame:
                     self.debug_log(f"expense deduction error: {e}")
                 # 一天結束後，遊戲天數 +1（固定30天/月）
                 self.data.days += 1
-                for code, stock in self.data.stocks.items():
-                    if self.data.days >= stock.get('next_dividend_day', 30):
-                        if stock['owned'] > 0 and stock.get('dividend_per_share', 0) > 0:
-                            dividend = stock['owned'] * stock['dividend_per_share']
-                            # DRIP：若啟用則優先再投資購買同檔股票
-                            if stock.get('drip'):
-                                price = float(stock.get('price', 0.0)) or 0.0
-                                shares = int(dividend // price) if price > 0 else 0
-                                leftover = dividend - shares * price
-                                if shares > 0:
-                                    self._buy_stock_by_code(code, shares, log_prefix="DRIP再投資")
-                                if leftover > 0:
-                                    self.data.cash += leftover
-                                msg = f"{stock['name']} 配息（DRIP）：配息 ${dividend:.2f}，再投資買入 {shares} 股，餘額 ${leftover:.2f}"
-                                self.log_transaction(msg)
-                                self.show_event_message(msg)
-                            else:
-                                self.data.cash += dividend
-                                msg = f"{stock['name']} 配息：持有 {stock['owned']} 股，獲得股息 ${dividend:.2f}"
-                                self.log_transaction(msg)
-                                self.show_event_message(msg)
-                        stock['next_dividend_day'] = self.data.days + stock.get('dividend_interval', 30)
+                # 股利與 DRIP 委派到 DividendManager
+                try:
+                    self.dividends.process_daily()
+                except Exception as e:
+                    self.debug_log(f"dividend manager error: {e}")
                 # 比特幣價格隨機波動
                 btc = self.data.stocks['BTC']
                 btc_change = random.gauss(0, 0.03)

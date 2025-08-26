@@ -27,7 +27,7 @@ def create_header_section(root, game):
     # 左：登入區塊（移動原本登入區塊內容到這裡）
     game.top_left_frame = left
     # 中：標題
-    ttk.Label(center, text="銀行系統", font=HEADER_FONT).pack(anchor='center')
+    ttk.Label(center, text="銀行系統", style='Header.TLabel').pack(anchor='center')
     # 右：時間與遊戲日數
     game.time_label = ttk.Label(right, font=FONT)
     game.time_label.pack(anchor='e')
@@ -214,7 +214,7 @@ def create_main_tabs(root, game):
     # --- 全域現金顯示區 ---
     cash_frame = ttk.Frame(root)
     cash_frame.pack(fill=tk.X, pady=2)
-    game.cash_label = ttk.Label(cash_frame, font=("Microsoft JhengHei", 16, "bold"), foreground="#ffe066", background="#23272e")
+    game.cash_label = ttk.Label(cash_frame, style='Cash.TLabel')
     # 預設隱藏
     # game.cash_label.pack(side=tk.LEFT, padx=10)
     # --- 主分頁 ---
