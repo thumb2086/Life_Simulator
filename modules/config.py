@@ -13,3 +13,8 @@ CRYPTO_MINED_PER_HASHRATE = 0.01  # BTC mined per round per khashrate unit
 # Stocks / Calendar
 STOCK_UPDATE_TICKS = 15           # how many unified ticks per stock price update
 MONTH_DAYS = 30                   # days per in-game month
+
+# Server API (for leaderboard, optional cloud save)
+# Set API_BASE_URL to enable server integration, e.g., "http://127.0.0.1:8000"
+API_BASE_URL = "http://127.0.0.1:8000"
+API_KEY = "dev-local-key"
