@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/styles.css" />
+  <title>新股票銀行遊戲 - 排行榜</title>
+</head>
+<body>
+  <header>
+    <h1>排行榜</h1>
+    <nav>
+      <a href="/static/leaderboard.html" class="active">排行榜</a>
+      <a href="/static/dashboard.html">儀表板（預覽）</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <h2>資產排行榜</h2>
+      <table id="asset-table">
+        <thead>
+          <tr><th>#</th><th>用戶</th><th>資產</th><th>天數</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+    <section>
+      <h2>賭場排行榜</h2>
+      <table id="casino-table">
+        <thead>
+          <tr><th>#</th><th>用戶</th><th>總贏金</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <footer>
+    <span id="status">載入中...</span>
+  </footer>
+  <script src="/static/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.App.initLeaderboard({ refreshMs: 10000 });
+    });
+  </script>
+</body>
+</html>

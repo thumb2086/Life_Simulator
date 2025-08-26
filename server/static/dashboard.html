@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/styles.css" />
+  <title>新股票銀行遊戲 - 儀表板</title>
+</head>
+<body>
+  <header>
+    <h1>儀表板</h1>
+    <nav>
+      <a href="/static/leaderboard.html">排行榜</a>
+      <a href="/static/dashboard.html" class="active">儀表板</a>
+    </nav>
+  </header>
+  <main>
+    <section id="login-section">
+      <h2>登入</h2>
+      <div class="row">
+        <label for="username">使用者名稱</label>
+        <input id="username" placeholder="輸入使用者名稱" />
+      </div>
+      <button id="btn-login">登入</button>
+      <div id="login-status" class="muted"></div>
+    </section>
+
+    <section id="game-section" style="display:none;">
+      <h2>玩家資訊</h2>
+      <div class="grid">
+        <div class="card">
+          <div>使用者：<b id="u-name"></b></div>
+          <div>現金：<b id="u-cash"></b></div>
+          <div>天數：<b id="u-days"></b></div>
+          <button id="btn-advance">推進一天</button>
+          <span id="advance-status" class="muted"></span>
+        </div>
+      </div>
+
+      <h2>股票</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>持倉</h3>
+          <table id="tbl-holdings">
+            <thead><tr><th>股票</th><th>數量</th><th>均價</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>價格</h3>
+          <table id="tbl-prices">
+            <thead><tr><th>股票</th><th>價格</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>買入</h3>
+          <div class="row">
+            <input id="buy-symbol" placeholder="如 AAPL" />
+            <input id="buy-qty" type="number" min="0" step="1" placeholder="數量" />
+            <button id="btn-buy">買入</button>
+          </div>
+          <div id="buy-status" class="muted"></div>
+        </div>
+        <div class="card">
+          <h3>賣出</h3>
+          <div class="row">
+            <input id="sell-symbol" placeholder="如 AAPL" />
+            <input id="sell-qty" type="number" min="0" step="1" placeholder="數量" />
+            <button id="btn-sell">賣出</button>
+          </div>
+          <div id="sell-status" class="muted"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <span id="status">就緒</span>
+  </footer>
+  <script src="/static/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.App.initDashboard();
+    });
+  </script>
+</body>
+</html>
