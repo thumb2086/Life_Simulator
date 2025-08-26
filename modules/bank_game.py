@@ -12,6 +12,11 @@ import time
 import random
 import os
 from stock_manager import StockManager
+from entrepreneurship import EntrepreneurshipManager
+from reports_charts import ReportsChartsManager
+from store_expenses import StoreExpensesManager
+from logger import GameLogger
+from job_manager import JobManager
 
 class BankGame:
     def __init__(self, root, data=None):
@@ -33,6 +38,18 @@ class BankGame:
         self.event_manager = EventManager(self)
         self.leaderboard = Leaderboard()
         self.stock_manager = StockManager(self.data, self.log_transaction, self.update_display)
+        # 1 天 = 180 秒（3 分鐘）=> unified_timer 每秒 tick，滿 180 tick 視為一天
+        self.DAY_TICKS = 180
+        # 創業系統管理器
+        self.entre = EntrepreneurshipManager(self)
+        # 報表與圖表管理器
+        self.reports = ReportsChartsManager(self)
+        # 商店與支出管理器
+        self.store = StoreExpensesManager(self)
+        # 記錄器
+        self.logger = GameLogger(self)
+        # 工作/薪資管理器
+        self.jobs = JobManager(self)
         self.create_ui()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
@@ -64,296 +81,48 @@ class BankGame:
         # 新增：自動綁定股票分頁內的 label
         self.stock_status_labels = getattr(self, 'stock_status_labels', {})
         self.stock_dividend_labels = getattr(self, 'stock_dividend_labels', {})
+        # 初始更新天數顯示
+        self.update_game_day_label()
 
     # --- 偵錯工具 ---
     def debug_log(self, msg):
-        try:
-            # 允許以環境變數 SG_DEBUG=1 開啟偵錯
-            if getattr(self, 'DEBUG', False) or os.environ.get('SG_DEBUG') == '1':
-                ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-                print(f"[DEBUG {ts}] {msg}")
-        except Exception:
-            pass
+        return self.logger.debug_log(msg)
 
     # --- 支出：UI 綁定與列表更新 ---
     def update_expenses_ui(self):
-        try:
-            if hasattr(self, 'expense_listbox'):
-                self.expense_listbox.delete(0, tk.END)
-                for exp in getattr(self.data, 'expenses', []):
-                    self.expense_listbox.insert(tk.END, self._format_expense_row(exp))
-            # 計算支出總覽（換算成每日/每週/每月）
-            exps = getattr(self.data, 'expenses', [])
-            daily = weekly = monthly = 0.0
-            for e in exps:
-                amt = float(e.get('amount', 0.0))
-                freq = e.get('frequency', 'daily')
-                if freq == 'daily':
-                    daily += amt
-                    weekly += amt * 7
-                    monthly += amt * 30
-                elif freq == 'weekly':
-                    daily += amt / 7
-                    weekly += amt
-                    monthly += (amt / 7) * 30
-                else:  # monthly
-                    daily += amt / 30
-                    weekly += (amt / 30) * 7
-                    monthly += amt
-            if hasattr(self, 'expense_summary_label') and self.expense_summary_label is not None:
-                self.expense_summary_label.config(text=f"預估支出：每日 ${daily:.2f}｜每週 ${weekly:.2f}｜每月 ${monthly:.2f}")
-        except Exception:
-            pass
-
-    # 頻率對應天數（集中管理）
-    FREQ_DAYS = {'daily': 1, 'weekly': 7, 'monthly': 30}
-
-    # --- 共用小工具：集中重複邏輯 ---
-    def _freq_interval(self, frequency: str, default: int = 30) -> int:
-        return self.FREQ_DAYS.get(frequency, default)
-
-    def _append_expense(self, name: str, amount: float, frequency: str, today: int | None = None):
-        try:
-            if today is None:
-                today = self.data.days
-            interval = self._freq_interval(frequency, 30)
-            self.data.expenses.append({
-                'name': name,
-                'amount': float(amount),
-                'frequency': frequency,
-                'next_due_day': today + 1 + interval,
-            })
-            return True
-        except Exception as e:
-            self.debug_log(f"_append_expense error: {e}")
-            return False
-
-    def _refresh_and_persist(self, update_store: bool = False, update_display: bool = False):
-        try:
-            self.update_expenses_ui()
-            if update_store:
-                self.update_store_ui()
-            if update_display:
-                self.update_display()
-            self._pending_save = True
-            self.schedule_persist()
-        except Exception as e:
-            self.debug_log(f"_refresh_and_persist error: {e}")
-
-    def _is_subscribed(self, name: str) -> bool:
-        return any(e.get('name') == name for e in getattr(self.data, 'expenses', []))
-
-    def _format_expense_row(self, exp: dict) -> str:
-        try:
-            name = exp.get('name', '支出')
-            amt = float(exp.get('amount', 0.0))
-            freq = exp.get('frequency', 'daily')
-            next_due = exp.get('next_due_day', '-')
-            return f"{name} | ${amt:.2f} | {freq} | 下次第{next_due}天"
-        except Exception:
-            return str(exp)
-
-    def _populate_listbox(self, widget, rows):
-        try:
-            if not hasattr(self, widget) or getattr(self, widget) is None:
-                return
-            lb = getattr(self, widget)
-            lb.delete(0, tk.END)
-            for r in rows:
-                lb.insert(tk.END, r)
-        except Exception as e:
-            self.debug_log(f"_populate_listbox error: {e}")
-
-    def _get_selected_index(self, widget) -> int | None:
-        try:
-            if not hasattr(self, widget) or getattr(self, widget) is None:
-                return None
-            lb = getattr(self, widget)
-            sel = lb.curselection()
-            if not sel:
-                return None
-            return sel[0]
-        except Exception:
-            return None
-
-    def _notify(self, msg: str, also_event: bool = True):
-        try:
-            self.log_transaction(msg)
-            if also_event and hasattr(self, 'show_event_message'):
-                self.show_event_message(msg)
-        except Exception:
-            pass
+        return self.store.update_expenses_ui()
 
     def add_expense_from_ui(self):
-        try:
-            if not (hasattr(self, 'expense_name_var') and hasattr(self, 'expense_amount_var') and hasattr(self, 'expense_freq_var')):
-                return
-            name = self.expense_name_var.get().strip() or '支出'
-            amt_str = self.expense_amount_var.get().strip()
-            try:
-                amount = max(0.0, float(amt_str))
-            except Exception:
-                self.show_event_message("金額格式錯誤！")
-                return
-            freq = self.expense_freq_var.get().strip() or 'daily'
-            self._append_expense(name, amount, freq)
-            self.log_transaction(f"新增支出：{name} ${amount:.2f} ({freq})")
-            self._refresh_and_persist()
-        except Exception as e:
-            self.debug_log(f"add_expense_from_ui error: {e}")
+        return self.store.add_expense_from_ui()
 
     # --- 商店與固定支出：邏輯層 ---
     def ensure_default_expenses(self):
-        try:
-            if getattr(self.data, 'expense_defaults_added', False):
-                return
-            # 預設固定支出（以月計費）
-            defaults = [
-                {'name': '水電瓦斯', 'amount': 50.0, 'frequency': 'monthly'},
-                {'name': '網路費', 'amount': 25.0, 'frequency': 'monthly'},
-                {'name': '手機費', 'amount': 20.0, 'frequency': 'monthly'},
-            ]
-            today = self.data.days
-            names_existing = {e.get('name') for e in getattr(self.data, 'expenses', [])}
-            for d in defaults:
-                if d['name'] in names_existing:
-                    continue
-                self._append_expense(d['name'], d['amount'], d['frequency'], today)
-                self.log_transaction(f"加入固定支出：{d['name']} ${d['amount']:.2f} ({d['frequency']})")
-            self.data.expense_defaults_added = True
-            self._refresh_and_persist()
-        except Exception as e:
-            self.debug_log(f"ensure_default_expenses error: {e}")
+        return self.store.ensure_default_expenses()
 
     def subscribe_service(self, name, amount, frequency):
-        try:
-            # 若已存在相同名稱的支出，則不重複新增
-            for e in getattr(self.data, 'expenses', []):
-                if e.get('name') == name:
-                    self._notify(f"已訂閱：{name}")
-                    return False
-            self._append_expense(name, amount, frequency)
-            self.log_transaction(f"訂閱服務：{name} ${amount:.2f} ({frequency})")
-            self._refresh_and_persist(update_store=True)
-            return True
-        except Exception as e:
-            self.debug_log(f"subscribe_service error: {e}")
-            return False
+        return self.store.subscribe_service(name, amount, frequency)
 
     def cancel_subscription(self, name):
-        try:
-            # 只允許取消商店中的訂閱類型
-            subs = set(self.data.store_catalog.get('subscriptions', {}).keys()) if isinstance(self.data.store_catalog, dict) else set()
-            if name not in subs:
-                self._notify("選取的支出不是訂閱項目！")
-                return False
-            exps = getattr(self.data, 'expenses', [])
-            idx_to_remove = next((i for i, e in enumerate(exps) if e.get('name') == name), None)
-            if idx_to_remove is None:
-                self._notify("找不到該訂閱於支出清單！")
-                return False
-            exp = exps.pop(idx_to_remove)
-            self.log_transaction(f"取消訂閱：{exp.get('name','')} 每{exp.get('frequency','-')} ${float(exp.get('amount',0.0)):.2f}")
-            self._refresh_and_persist(update_store=True)
-            return True
-        except Exception as e:
-            self.debug_log(f"cancel_subscription error: {e}")
-            return False
+        return self.store.cancel_subscription(name)
 
     def cancel_subscription_from_ui(self):
-        try:
-            idx = self._get_selected_index('expense_listbox')
-            if idx is None:
-                self._notify("請先選擇要取消的訂閱！")
-                return
-            if 0 <= idx < len(self.data.expenses):
-                name = self.data.expenses[idx].get('name', '')
-                self.cancel_subscription(name)
-        except Exception as e:
-            self.debug_log(f"cancel_subscription_from_ui error: {e}")
+        return self.store.cancel_subscription_from_ui()
 
     def buy_store_good(self, name, price):
-        try:
-            price = float(price)
-            if self.data.cash < price:
-                self.log_transaction(f"購買失敗（現金不足）：{name} 需要 ${price:.2f}")
-                return False
-            self.data.cash -= price
-            inv = getattr(self.data, 'inventory', [])
-            inv.append(name)
-            self.data.inventory = inv
-            self.log_transaction(f"購買物品：{name} 花費 ${price:.2f}")
-            self.update_store_ui()
-            self.update_display()
-            self._pending_save = True
-            self.schedule_persist()
-            return True
-        except Exception as e:
-            self.debug_log(f"buy_store_good error: {e}")
-            return False
+        return self.store.buy_store_good(name, price)
 
     # --- 商店：UI 綁定 ---
     def update_store_ui(self):
-        try:
-            # 物品清單
-            if isinstance(self.data.store_catalog, dict):
-                goods_rows = [
-                    f"{name} | ${float(item.get('price',0.0)):.2f}"
-                    for name, item in self.data.store_catalog.get('goods', {}).items()
-                ]
-                self._populate_listbox('store_goods_list', goods_rows)
-                # 訂閱清單
-                subscribed = {e.get('name') for e in getattr(self.data, 'expenses', [])}
-                subs_rows = []
-                for name, item in self.data.store_catalog.get('subscriptions', {}).items():
-                    amt = float(item.get('amount', 0.0))
-                    freq = item.get('frequency', 'monthly')
-                    tag = " [已訂閱]" if name in subscribed else ""
-                    subs_rows.append(f"{name} | ${amt:.2f}/{freq}{tag}")
-                self._populate_listbox('store_subs_list', subs_rows)
-            # 物品欄
-            inv_rows = [f"{it}" for it in getattr(self.data, 'inventory', [])]
-            self._populate_listbox('inventory_list', inv_rows)
-        except Exception:
-            pass
+        return self.store.update_store_ui()
 
     def subscribe_selected_from_ui(self):
-        try:
-            idx = self._get_selected_index('store_subs_list')
-            if idx is None:
-                return
-            names = list(self.data.store_catalog.get('subscriptions', {}).keys())
-            if 0 <= idx < len(names):
-                name = names[idx]
-                cfg = self.data.store_catalog['subscriptions'][name]
-                self.subscribe_service(name, cfg.get('amount', 0.0), cfg.get('frequency', 'monthly'))
-        except Exception as e:
-            self.debug_log(f"subscribe_selected_from_ui error: {e}")
+        return self.store.subscribe_selected_from_ui()
 
     def buy_selected_good_from_ui(self):
-        try:
-            idx = self._get_selected_index('store_goods_list')
-            if idx is None:
-                return
-            names = list(self.data.store_catalog.get('goods', {}).keys())
-            if 0 <= idx < len(names):
-                name = names[idx]
-                price = self.data.store_catalog['goods'][name].get('price', 0.0)
-                self.buy_store_good(name, price)
-        except Exception as e:
-            self.debug_log(f"buy_selected_good_from_ui error: {e}")
+        return self.store.buy_selected_good_from_ui()
 
     def delete_expense_from_ui(self):
-        try:
-            idx = self._get_selected_index('expense_listbox')
-            if idx is None:
-                return
-            if 0 <= idx < len(self.data.expenses):
-                exp = self.data.expenses.pop(idx)
-                self.log_transaction(f"刪除支出：{exp.get('name','支出')} ${float(exp.get('amount',0.0)):.2f}")
-                self._refresh_and_persist()
-        except Exception as e:
-            self.debug_log(f"delete_expense_from_ui error: {e}")
+        return self.store.delete_expense_from_ui()
 
     def _run_task(self, name, func):
         t0 = time.perf_counter()
@@ -373,6 +142,8 @@ class BankGame:
         self.deposit_rate_label.config(text=f"存款利率: {self.data.deposit_interest_rate*100:.2f}%")
         self.loan_rate_label.config(text=f"貸款利率: {self.data.loan_interest_rate*100:.2f}%")
         self.asset_label.config(text=f"總資產: ${self.data.total_assets():.2f}")
+        # 更新遊戲日數顯示
+        self.update_game_day_label()
         self.update_stock_status_labels()
         # 更新配息資訊（如有）
         if hasattr(self, 'stock_dividend_labels'):
@@ -403,151 +174,15 @@ class BankGame:
         self.schedule_persist()
 
     def update_report_ui(self):
-        try:
-            incomes = getattr(self.data, 'income_history', []) or []
-            expenses = getattr(self.data, 'expense_history', []) or []
-            today = getattr(self.data, 'days', 0)
-
-            # 彙總每日收入/支出
-            inc_by_day = {}
-            for r in incomes:
-                try:
-                    d = int(r.get('day', 0))
-                    inc_by_day[d] = inc_by_day.get(d, 0.0) + float(r.get('net', 0.0))
-                except Exception:
-                    pass
-            exp_by_day = {}
-            for r in expenses:
-                try:
-                    d = int(r.get('day', 0))
-                    exp_by_day[d] = exp_by_day.get(d, 0.0) + float(r.get('amount', 0.0))
-                except Exception:
-                    pass
-
-            days = sorted(set(list(inc_by_day.keys()) + list(exp_by_day.keys())))
-
-            def sum_range(dct, start_day, end_day):
-                total = 0.0
-                for d, v in dct.items():
-                    if start_day <= d <= end_day:
-                        total += float(v)
-                return total
-
-            inc_today = sum_range(inc_by_day, today, today)
-            exp_today = sum_range(exp_by_day, today, today)
-            inc_7 = sum_range(inc_by_day, max(0, today - 6), today)
-            exp_7 = sum_range(exp_by_day, max(0, today - 6), today)
-            inc_30 = sum_range(inc_by_day, max(0, today - 29), today)
-            exp_30 = sum_range(exp_by_day, max(0, today - 29), today)
-
-            # 更新摘要標籤
-            if hasattr(self, 'report_income_summary_label') and self.report_income_summary_label is not None:
-                self.report_income_summary_label.config(
-                    text=f"收入：今日 ${inc_today:.2f}｜近7天 ${inc_7:.2f}｜近30天 ${inc_30:.2f}"
-                )
-            if hasattr(self, 'report_expense_summary_label') and self.report_expense_summary_label is not None:
-                self.report_expense_summary_label.config(
-                    text=f"支出：今日 ${exp_today:.2f}｜近7天 ${exp_7:.2f}｜近30天 ${exp_30:.2f}"
-                )
-            if hasattr(self, 'report_net_summary_label') and self.report_net_summary_label is not None:
-                net_today = inc_today - exp_today
-                net_7 = inc_7 - exp_7
-                net_30 = inc_30 - exp_30
-                self.report_net_summary_label.config(
-                    text=f"淨額：今日 ${net_today:.2f}｜近7天 ${net_7:.2f}｜近30天 ${net_30:.2f}"
-                )
-
-            # 畫每日趨勢
-            if hasattr(self, 'report_ax') and hasattr(self, 'report_canvas') and self.report_ax is not None:
-                ax = self.report_ax
-                ax.clear()
-                ax.set_facecolor('white')
-                if days:
-                    inc_series = [inc_by_day.get(d, 0.0) for d in days]
-                    exp_series = [exp_by_day.get(d, 0.0) for d in days]
-                    ax.plot(days, inc_series, label='收入', color='green', linewidth=2)
-                    ax.plot(days, exp_series, label='支出', color='red', linewidth=2)
-                ax.set_title("收入 vs 支出（每日）")
-                ax.set_xlabel("天數")
-                ax.set_ylabel("金額")
-                ax.grid(True, linestyle='--', alpha=0.3)
-                ax.legend(loc='upper left')
-                try:
-                    self.report_fig.tight_layout()
-                except Exception:
-                    pass
-                self.report_canvas.draw()
-        except Exception as e:
-            self.debug_log(f"update_report_ui error: {e}")
+        # 委派至 ReportsChartsManager
+        return self.reports.update_report_ui()
 
     def update_charts(self):
-        color_list = ['blue', 'green', 'red', 'orange', 'purple', 'brown', 'cyan', 'magenta', 'gray']
-        stock_codes = list(self.data.stocks.keys())
-        color_map = {code: color_list[i % len(color_list)] for i, code in enumerate(stock_codes)}
-        # 只處理有初始化圖表元件的股票
-        t0 = time.perf_counter()
-        updated = 0
-        skipped = 0
-        for k in self.axes.keys():
-            if k not in self.data.stocks:
-                continue
-            stock = self.data.stocks[k]
-            try:
-                ax = self.axes[k]
-                canvas = self.canvases[k]
-                # 只在圖表 widget 可見時才重繪
-                try:
-                    if not canvas.get_tk_widget().winfo_viewable():
-                        skipped += 1
-                        continue
-                except Exception:
-                    pass
-                ax.clear()
-                # 設定白色背景
-                ax.set_facecolor('white')
-                range_val = self.chart_ranges[k].get()
-                if range_val == '全部':
-                    h = stock['history']
-                    offset = 0
-                else:
-                    n = int(''.join(filter(str.isdigit, range_val)))
-                    h = stock['history'][-n:]
-                    offset = len(stock['history']) - len(h)
-                line, = ax.plot(h, marker='', linewidth=2, color=color_map.get(k, 'black'))
-                if stock['owned'] > 0 and stock['total_cost'] > 0:
-                    avg_price = stock['total_cost'] / stock['owned']
-                    ax.axhline(avg_price, color='orange', linestyle='--', linewidth=1.5, label='平均買入價')
-                filtered_sell = [(i-offset, p) for i, p in stock['sell_points'] if i >= offset and i < offset+len(h)]
-                if filtered_sell:
-                    xs, ys = zip(*filtered_sell)
-                else:
-                    xs, ys = [], []
-                ax.scatter(xs, ys, color='purple', marker='v', label='賣出', zorder=5)
-                if h:
-                    max_idx, min_idx = h.index(max(h)), h.index(min(h))
-                    ax.scatter([max_idx], [max(h)], color='red', marker='*', s=150, label='最大', edgecolors='black', linewidths=1.5)
-                    ax.scatter([min_idx], [min(h)], color='blue', marker='*', s=150, label='最小', edgecolors='black', linewidths=1.5)
-                ax.set_title(f"{stock['name']} 價格走勢", fontsize=12)
-                ax.set_xlabel('時間', fontsize=10)
-                ax.set_ylabel('價格', fontsize=10)
-                ax.grid(True)
-                ax.legend(loc='lower left')
-                canvas.draw()
-                # 移除每次更新時的滑鼠事件重綁，事件在建立圖表時已綁定
-                updated += 1
-            except Exception as e:
-                print(f"股票圖表更新失敗: {k}, 錯誤: {e}")
-        dt = (time.perf_counter() - t0) * 1000
-        self.debug_log(f"update_charts: updated={updated}, skipped={skipped}, {dt:.1f} ms")
+        # 委派至 ReportsChartsManager
+        return self.reports.update_charts()
 
     def log_transaction(self, message):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.data.transaction_history.append({'timestamp': timestamp, 'message': message})
-        self.history_text.config(state='normal')
-        self.history_text.insert('1.0', f"[{timestamp}] {message}\n")
-        if int(self.history_text.index('end-1c').split('.')[0]) > 20:
-            self.history_text.delete('end-1c linestart', 'end-1c')
-        self.history_text.config(state='disabled')
+        return self.logger.log_transaction(message)
 
     def start_scheduled_tasks(self):
         self._after_ids = []
@@ -566,8 +201,8 @@ class BankGame:
             self._unified_timer_tick += 1
             tick = self._unified_timer_tick
             self.debug_log(f"unified_timer tick={tick} start")
-            # 每 5 秒執行股票更新
-            if tick % 5 == 0:
+            # 每 15 秒執行股票更新
+            if tick % 15 == 0:
                 for stock in self.data.stocks.values():
                     change_percent = random.gauss(0, self.data.market_volatility)
                     new_price = stock['price'] * (1 + change_percent)
@@ -577,8 +212,8 @@ class BankGame:
                 # 股票更新後，同步更新基金 NAV
                 self.compute_fund_navs()
                 self.update_display()
-            # 每 30 秒執行利息與配息與比特幣產幣
-            if tick % 30 == 0:
+            # 每 self.DAY_TICKS 秒執行：利息、配息、礦機、每日結算（視為一天）
+            if tick % self.DAY_TICKS == 0:
                 if self.data.balance > 0:
                     interest = self.data.balance * self.data.deposit_interest_rate
                     self.data.balance += interest
@@ -650,6 +285,7 @@ class BankGame:
                             exp['next_due_day'] = today + interval
                 except Exception as e:
                     self.debug_log(f"expense deduction error: {e}")
+                # 一天結束後，遊戲天數 +1（固定30天/月）
                 self.data.days += 1
                 for code, stock in self.data.stocks.items():
                     if self.data.days >= stock.get('next_dividend_day', 30):
@@ -686,8 +322,8 @@ class BankGame:
                     self.log_transaction(f"礦機自動挖礦，獲得比特幣 {mined:.4f}")
                 # 創業/定投：每日處理
                 try:
-                    self._process_business_daily()
-                    self._process_auto_invest_daily()
+                    # 創業每日淨額
+                    self.entre.process_daily()
                 except Exception as e:
                     self.debug_log(f"auto features error: {e}")
                 # 每日結束時也更新一次基金 NAV 並記錄歷史
@@ -723,6 +359,17 @@ class BankGame:
         self._after_map['time'] = aid
         self._after_ids.append(aid)
         self.debug_log(f"schedule time after 1000 ms -> id={aid}")
+
+    # --- 遊戲日數顯示 ---
+    def update_game_day_label(self):
+        try:
+            if hasattr(self, 'game_day_label') and self.game_day_label is not None:
+                days = int(getattr(self.data, 'days', 0))
+                month = days // 30 + 1
+                day_in_month = days % 30 + 1
+                self.game_day_label.config(text=f"遊戲日數：第 {days} 天（第 {month} 月 第 {day_in_month} 天）")
+        except Exception:
+            pass
 
     # --- Auto-Invest/DRIP/Business：邏輯層與 UI 綁定 ---
     def _buy_stock_by_code(self, code: str, shares: int, log_prefix: str = "買入"):
@@ -798,21 +445,6 @@ class BankGame:
                         cfg['next_day'] = today + 1
             except Exception as e:
                 self.debug_log(f"dca_fund error({fname}): {e}")
-
-    def _process_business_daily(self):
-        self._ensure_auto_structs()
-        total_net = 0.0
-        try:
-            for b in self.data.businesses:
-                rev = float(b.get('revenue_per_day', 0.0))
-                cost = float(b.get('cost_per_day', 0.0))
-                net = rev - cost
-                total_net += net
-            if abs(total_net) > 1e-9:
-                self.data.cash += total_net
-                self.log_transaction(f"創業收益（淨額） ${total_net:.2f}")
-        except Exception as e:
-            self.debug_log(f"_process_business_daily error: {e}")
 
     # 以下為 UI 綁定（由 ui_sections 建立之控制項呼叫）
     def ui_add_or_update_dca_stock(self):
@@ -909,42 +541,71 @@ class BankGame:
                     self.dca_fund_list.insert(tk.END, f"{name} | ${float(cfg.get('amount_cash',0.0)):.2f} / {int(cfg.get('interval_days',30))}天 | 下次第{int(cfg.get('next_day',0))}天")
             if hasattr(self, 'business_list') and self.business_list is not None:
                 self.business_list.delete(0, tk.END)
-                for b in getattr(self.data, 'businesses', []):
-                    name = b.get('name','事業')
-                    lvl = int(b.get('level',1))
-                    rev = float(b.get('revenue_per_day',0.0))
-                    cost = float(b.get('cost_per_day',0.0))
-                    self.business_list.insert(tk.END, f"{name} Lv.{lvl} | 收入 ${rev:.2f} | 成本 ${cost:.2f} | 淨額 ${rev-cost:.2f}")
+                try:
+                    rows = self.entre.get_business_rows()
+                except Exception:
+                    rows = []
+                for row in rows:
+                    self.business_list.insert(tk.END, row)
         except Exception as e:
             self.debug_log(f"update_auto_invest_ui error: {e}")
 
+    # --- 創業系統：UI 綁定（委派到 EntrepreneurshipManager） ---
     def ui_add_business(self):
         try:
-            self._ensure_auto_structs()
             name = self.biz_name_var.get().strip() if hasattr(self, 'biz_name_var') else '事業'
-            rev = float(self.biz_rev_var.get().strip()) if hasattr(self, 'biz_rev_var') else 0.0
-            cost = float(self.biz_cost_var.get().strip()) if hasattr(self, 'biz_cost_var') else 0.0
-            self.data.businesses.append({'name': name, 'level': 1, 'revenue_per_day': rev, 'cost_per_day': cost, 'next_upgrade_cost': max(100.0, rev*10)})
-            self.log_transaction(f"創立事業：{name}（收入 ${rev:.2f} / 成本 ${cost:.2f}）")
-            self.update_auto_invest_ui()
+            rev = float(self.biz_rev_var.get().strip()) if hasattr(self, 'biz_rev_var') and self.biz_rev_var.get().strip() else 0.0
+            cost = float(self.biz_cost_var.get().strip()) if hasattr(self, 'biz_cost_var') and self.biz_cost_var.get().strip() else 0.0
+            if self.entre.add_business(name, rev, cost):
+                self.update_auto_invest_ui()
+                self.update_display()
         except Exception as e:
             self.debug_log(f"ui_add_business error: {e}")
 
     def ui_remove_business(self):
         try:
-            self._ensure_auto_structs()
             if not hasattr(self, 'business_list'):
                 return
             sel = self.business_list.curselection()
             if not sel:
                 return
             idx = sel[0]
-            if 0 <= idx < len(self.data.businesses):
-                b = self.data.businesses.pop(idx)
-                self.log_transaction(f"關閉事業：{b.get('name','事業')}")
+            if self.entre.remove_business(idx):
                 self.update_auto_invest_ui()
+                self.update_display()
         except Exception as e:
             self.debug_log(f"ui_remove_business error: {e}")
+
+    def ui_recruit_employee(self):
+        try:
+            if not hasattr(self, 'business_list'):
+                return
+            sel = self.business_list.curselection()
+            if not sel:
+                self.show_event_message("請先選擇要招募的事業！")
+                return
+            idx = sel[0]
+            msg = self.entre.recruit_employee(idx)
+            if msg:
+                self.show_event_message(msg)
+            self.update_auto_invest_ui()
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"ui_recruit_employee error: {e}")
+
+    def ui_add_business_legacy(self):
+        """Deprecated: 保留舊版以相容，但委派到新實作。"""
+        try:
+            return self.ui_add_business()
+        except Exception as e:
+            self.debug_log(f"ui_add_business_legacy error: {e}")
+
+    def ui_remove_business_legacy(self):
+        """Deprecated: 保留舊版以相容，但委派到新實作。"""
+        try:
+            return self.ui_remove_business()
+        except Exception as e:
+            self.debug_log(f"ui_remove_business_legacy error: {e}")
 
     # --- 操作邏輯 ---
     def get_amount(self, min_value=1, max_value=100000000):
@@ -1266,57 +927,13 @@ class BankGame:
             self.debug_log(f"ui_select_job error: {e}")
 
     def select_job(self, name):
-        cat = getattr(self.data, 'jobs_catalog', {})
-        if name not in cat:
-            self.show_event_message("無效的職業！")
-            return
-        info = cat[name]
-        self.data.job = {
-            'name': name,
-            'level': 1,
-            'salary_per_day': float(info.get('base_salary_per_day', 0.0)),
-            'tax_rate': float(info.get('tax_rate', 0.0)),
-            'next_promotion_day': self.data.days + 7,
-        }
-        self.log_transaction(f"已選擇工作：{name}，日薪 ${self.data.job['salary_per_day']:.2f}")
-        self.update_job_ui()
-        self._pending_save = True
-        self.schedule_persist()
+        return self.jobs.select_job(name)
 
     def promote_job(self):
-        job = getattr(self.data, 'job', None)
-        if not job:
-            self.show_event_message("尚未選擇工作！")
-            return
-        if self.data.days < job.get('next_promotion_day', 0):
-            self.show_event_message("還沒到可升職的日子！")
-            return
-        job['level'] = int(job.get('level', 1)) + 1
-        job['salary_per_day'] = round(float(job.get('salary_per_day', 0.0)) * 1.2, 2)
-        job['next_promotion_day'] = self.data.days + 14
-        self.log_transaction(f"升職成功！目前等級 {job['level']}，新日薪 ${job['salary_per_day']:.2f}")
-        self.update_job_ui()
-        self._pending_save = True
-        self.schedule_persist()
+        return self.jobs.promote_job()
 
     def update_job_ui(self):
-        try:
-            if hasattr(self, 'job_labels'):
-                job = getattr(self.data, 'job', None)
-                if job:
-                    self.job_labels['name'].config(text=f"職稱：{job.get('name','-')}")
-                    self.job_labels['level'].config(text=f"等級：{job.get('level',1)}")
-                    self.job_labels['salary'].config(text=f"日薪：${job.get('salary_per_day',0.0):.2f}")
-                    self.job_labels['tax'].config(text=f"稅率：{job.get('tax_rate',0.0)*100:.1f}%")
-                    self.job_labels['next'].config(text=f"下次升職日：第 {job.get('next_promotion_day','-')} 天")
-                else:
-                    self.job_labels['name'].config(text="職稱：未就業")
-                    self.job_labels['level'].config(text="等級：-")
-                    self.job_labels['salary'].config(text="日薪：$0.00")
-                    self.job_labels['tax'].config(text="稅率：0.0%")
-                    self.job_labels['next'].config(text="下次升職日：-")
-        except Exception:
-            pass
+        return self.jobs.update_job_ui()
 
     # --- 成就、事件、排行榜 ---
     def check_achievements(self):

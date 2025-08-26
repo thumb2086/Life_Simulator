@@ -28,9 +28,11 @@ def create_header_section(root, game):
     game.top_left_frame = left
     # 中：標題
     ttk.Label(center, text="銀行系統", font=HEADER_FONT).pack(anchor='center')
-    # 右：時間
+    # 右：時間與遊戲日數
     game.time_label = ttk.Label(right, font=FONT)
     game.time_label.pack(anchor='e')
+    game.game_day_label = ttk.Label(right, text="遊戲日數：第 0 天（第 1 月 第 1 天）", font=FONT)
+    game.game_day_label.pack(anchor='e')
     return frame
 
 # 主體分頁（每個分頁一個大功能）
@@ -517,6 +519,8 @@ def create_main_tabs(root, game):
     sb_biz.pack(side=tk.RIGHT, fill=tk.Y)
     game.business_list.config(yscrollcommand=sb_biz.set)
     ttk.Button(biz_frame, text="刪除選取事業", command=game.ui_remove_business).pack(anchor='w', padx=6, pady=4)
+    # 招募員工按鈕
+    ttk.Button(biz_frame, text="招募員工（$50）", command=game.ui_recruit_employee).pack(anchor='w', padx=6, pady=4)
     # 初始刷新定投/創業清單
     try:
         if hasattr(game, 'update_auto_invest_ui'):
