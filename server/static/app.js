@@ -84,6 +84,9 @@ window.App = (function(){
     setText('#u-name', data.username);
     setText('#u-cash', formatNumber(data.cash));
     setText('#u-days', data.days);
+    if (typeof data.net_worth !== 'undefined') {
+      setText('#u-net', formatNumber(data.net_worth));
+    }
     // holdings
     const tbHold = qs('#tbl-holdings tbody');
     if(tbHold){
@@ -153,11 +156,24 @@ window.App = (function(){
     }catch(e){ status.textContent = `失敗: ${e.message}`; }
   }
 
+  async function submitLeaderboard(){
+    const token = getToken();
+    const status = qs('#submit-status');
+    status.textContent = '提交中...';
+    try{
+      const res = await fetchJSON('/leaderboard/submit_web', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
+      status.textContent = `已提交，資產=${formatNumber(res.asset)}，天數=${res.days}`;
+    }catch(e){
+      status.textContent = `提交失敗: ${e.message}`;
+    }
+  }
+
   function wireDashboard(){
     const btnLogin = qs('#btn-login'); if(btnLogin) btnLogin.addEventListener('click', login);
     const btnBuy = qs('#btn-buy'); if(btnBuy) btnBuy.addEventListener('click', buy);
     const btnSell = qs('#btn-sell'); if(btnSell) btnSell.addEventListener('click', sell);
     const btnAdv = qs('#btn-advance'); if(btnAdv) btnAdv.addEventListener('click', advance);
+    const btnSubmit = qs('#btn-submit-lb'); if(btnSubmit) btnSubmit.addEventListener('click', submitLeaderboard);
   }
 
   async function initDashboard(){

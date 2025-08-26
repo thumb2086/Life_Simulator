@@ -9,7 +9,7 @@
     "TSMC": {
       "name": "台積電",
       "industry": "科技業",
-      "price": 99.02,
+      "price": 128.78,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -25,18 +25,21 @@
         101.75,
         99.72,
         100.47,
-        99.02
+        99.02,
+        101.4,
+        128.78
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "HONHAI": {
       "name": "鴻海",
       "industry": "科技業",
-      "price": 79.45,
+      "price": 79.3,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -52,18 +55,20 @@
         80.75,
         79.41,
         79.88,
-        79.45
+        79.45,
+        79.3
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "MTK": {
       "name": "聯發科",
       "industry": "科技業",
-      "price": 115.76,
+      "price": 115.47,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -79,18 +84,20 @@
         120.26,
         117.92,
         116.27,
-        115.76
+        115.76,
+        115.47
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "MINING": {
       "name": "挖礦公司",
       "industry": "一級產業",
-      "price": 57.94,
+      "price": 57.77,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -106,18 +113,20 @@
         58.73,
         57.77,
         57.29,
-        57.94
+        57.94,
+        57.77
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 2,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "FARM": {
       "name": "農業公司",
       "industry": "一級產業",
-      "price": 51.57,
+      "price": 51.81,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -133,18 +142,20 @@
         50.56,
         51.26,
         51.62,
-        51.57
+        51.57,
+        51.81
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1.5,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "FOREST": {
       "name": "林業公司",
       "industry": "一級產業",
-      "price": 55.19,
+      "price": 54.6,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -160,18 +171,20 @@
         55.05,
         55.27,
         54.91,
-        55.19
+        55.19,
+        54.6
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1.2,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "RETAIL": {
       "name": "零售連鎖",
       "industry": "服務業",
-      "price": 69.03,
+      "price": 68.58,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -187,18 +200,20 @@
         70.03,
         70.32,
         69.88,
-        69.03
+        69.03,
+        68.58
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "RESTAURANT": {
       "name": "餐飲集團",
       "industry": "服務業",
-      "price": 61.65,
+      "price": 61.9,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -214,18 +229,20 @@
         63.5,
         63.4,
         61.98,
-        61.65
+        61.65,
+        61.9
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0.8,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "TRAVEL": {
       "name": "旅遊公司",
       "industry": "服務業",
-      "price": 73.62,
+      "price": 74.3,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -241,18 +258,20 @@
         73.97,
         73.98,
         73.43,
-        73.62
+        73.62,
+        74.3
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0.9,
       "dividend_interval": 30,
-      "next_dividend_day": 30
+      "next_dividend_day": 30,
+      "drip": false
     },
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 966031.2,
+      "price": 979329.92,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -264,13 +283,15 @@
         992561.51,
         988862.69,
         969272.3,
-        966031.2
+        966031.2,
+        979329.92
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 1
+      "next_dividend_day": 1,
+      "drip": false
     }
   },
   "btc_balance": 0.0,
@@ -315,6 +336,22 @@
     {
       "timestamp": "2025-08-25 15:47:54",
       "message": "已選擇工作：實習生，日薪 $50.00"
+    },
+    {
+      "timestamp": "2025-08-26 23:16:10",
+      "message": "加入固定支出：水電瓦斯 $50.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-26 23:16:10",
+      "message": "加入固定支出：網路費 $25.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-26 23:16:10",
+      "message": "加入固定支出：手機費 $20.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-26 23:16:22",
+      "message": "隨機事件：公司利多 - 隨機一家公司獲得利多，該公司股價大漲！｜影響：台積電上漲 27%"
     }
   ],
   "last_slot_win": 0,
@@ -346,8 +383,64 @@
       "tax_rate": 0.15
     }
   },
-  "expenses": [],
+  "expenses": [
+    {
+      "name": "水電瓦斯",
+      "amount": 50.0,
+      "frequency": "monthly",
+      "next_due_day": 32
+    },
+    {
+      "name": "網路費",
+      "amount": 25.0,
+      "frequency": "monthly",
+      "next_due_day": 32
+    },
+    {
+      "name": "手機費",
+      "amount": 20.0,
+      "frequency": "monthly",
+      "next_due_day": 32
+    }
+  ],
   "expense_history": [],
+  "expense_defaults_added": true,
+  "store_catalog": {
+    "subscriptions": {
+      "Netflix 訂閱": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 15.0,
+        "frequency": "monthly"
+      },
+      "Spotify 訂閱": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 10.0,
+        "frequency": "monthly"
+      },
+      "健身房會員": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 30.0,
+        "frequency": "monthly"
+      }
+    },
+    "goods": {
+      "筆電": {
+        "price": 800.0,
+        "type": "goods"
+      },
+      "自行車": {
+        "price": 150.0,
+        "type": "goods"
+      }
+    }
+  },
+  "inventory": [],
+  "dca_stocks": {},
+  "dca_funds": {},
+  "businesses": [],
   "funds_catalog": {
     "台灣科技ETF": {
       "weights": {
@@ -376,7 +469,7 @@
   },
   "funds": {
     "台灣科技ETF": {
-      "nav": 100.0,
+      "nav": 99.6825,
       "units": 0.0,
       "total_cost": 0.0,
       "history": [
@@ -389,7 +482,7 @@
       }
     },
     "服務業綜合ETF": {
-      "nav": 100.0,
+      "nav": 97.4284,
       "units": 0.0,
       "total_cost": 0.0,
       "history": [
@@ -402,7 +495,7 @@
       }
     },
     "一級產業ETF": {
-      "nav": 100.0,
+      "nav": 99.6909,
       "units": 0.0,
       "total_cost": 0.0,
       "history": [

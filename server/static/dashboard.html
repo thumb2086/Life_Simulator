@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="/static/styles.css" />
-  <title>新股票銀行遊戲 - 儀表板</title>
+  <title>Life_Simulator - 儀表板</title>
 </head>
 <body>
   <header>
@@ -33,8 +33,13 @@
           <div>使用者：<b id="u-name"></b></div>
           <div>現金：<b id="u-cash"></b></div>
           <div>天數：<b id="u-days"></b></div>
+          <div>淨資產：<b id="u-net"></b></div>
           <button id="btn-advance">推進一天</button>
           <span id="advance-status" class="muted"></span>
+          <div class="row" style="margin-top:8px;">
+            <button id="btn-submit-lb">提交排行榜</button>
+            <span id="submit-status" class="muted"></span>
+          </div>
         </div>
       </div>
 

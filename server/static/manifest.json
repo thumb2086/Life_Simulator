@@ -1,6 +1,6 @@
 {
-  "name": "新股票銀行遊戲",
-  "short_name": "股票遊戲",
+  "name": "Life_Simulator",
+  "short_name": "Life_Simulator",
   "start_url": "/static/leaderboard.html",
   "display": "standalone",
   "background_color": "#0d47a1",

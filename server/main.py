@@ -1,6 +1,4 @@
 from fastapi import FastAPI, Header, HTTPException, Query, Depends
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import sqlite3
@@ -211,16 +209,24 @@ def casino_top(username: Optional[str] = Query(default=None)) -> Dict[str, Any]:
     data = [{"username": r["username"], "casino_win": r["casino_win"]} for r in rows]
     return {"records": data}
 
-# Static web frontend (PWA)
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if not os.path.isdir(static_dir):
-    os.makedirs(static_dir, exist_ok=True)
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
-
 @app.get("/")
-def root() -> RedirectResponse:
-    # Redirect to leaderboard page by default
-    return RedirectResponse(url="/static/leaderboard.html")
+def root() -> Dict[str, Any]:
+    return {"ok": True, "service": "Life_Simulator Server"}
+
+@app.get("/health")
+def health() -> Dict[str, Any]:
+    try:
+        # quick db check
+        conn = get_db()
+        conn.execute("SELECT 1")
+        conn.close()
+        return {"status": "healthy"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"unhealthy: {e}")
+
+@app.get("/version")
+def version() -> Dict[str, Any]:
+    return {"version": app.version}
 
 
 # --- Web Game APIs ---
@@ -245,17 +251,24 @@ def game_state(token: str):
     cur = conn.cursor()
     ensure_user(conn, username)
     # user
-    cur.execute("SELECT cash, days FROM users WHERE username=?", (username,))
+    cur.execute("SELECT cash, days FROM users WHERE username= ?", (username,))
     row = cur.fetchone()
     cash = float(row["cash"]) if row else 0.0
     days = int(row["days"]) if row else 0
     # portfolio
-    cur.execute("SELECT symbol, qty, avg_cost FROM portfolios WHERE username=?", (username,))
+    cur.execute("SELECT symbol, qty, avg_cost FROM portfolios WHERE username= ?", (username,))
     holdings = [{"symbol": r["symbol"], "qty": float(r["qty"]), "avg_cost": float(r["avg_cost"])} for r in cur.fetchall()]
     # prices
     prices = get_prices(conn)
+    # net worth: cash + sum(qty * price)
+    portfolio_value = 0.0
+    for h in holdings:
+        sym = h["symbol"]
+        if sym in prices:
+            portfolio_value += h["qty"] * float(prices[sym])
+    net_worth = cash + portfolio_value
     conn.close()
-    return {"username": username, "cash": cash, "days": days, "holdings": holdings, "prices": prices}
+    return {"username": username, "cash": cash, "days": days, "holdings": holdings, "prices": prices, "portfolio_value": round(portfolio_value, 2), "net_worth": round(net_worth, 2)}
 
 
 @app.get("/stocks/list")
@@ -362,3 +375,53 @@ def tick_advance(payload: AdvancePayload):
     conn.commit()
     conn.close()
     return {"ok": True, "days": days}
+
+
+class SubmitWebPayload(BaseModel):
+    token: str
+
+
+@app.post("/leaderboard/submit_web")
+def leaderboard_submit_web(payload: SubmitWebPayload):
+    """
+    Web 用提交排行榜，使用 token 取得使用者，無需 API Key。
+    將目前使用者的 net_worth 與 days 寫入 leaderboard。
+    """
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    # 取得現金、天數
+    cur.execute("SELECT cash, days FROM users WHERE username= ?", (username,))
+    row = cur.fetchone()
+    cash = float(row["cash"]) if row else 0.0
+    days = int(row["days"]) if row else 0
+    # 取得持倉與價格以計算資產
+    cur.execute("SELECT symbol, qty FROM portfolios WHERE username= ?", (username,))
+    holdings_rows = cur.fetchall()
+    prices = get_prices(conn)
+    portfolio_value = 0.0
+    for r in holdings_rows:
+        sym = r["symbol"]
+        qty = float(r["qty"]) if r["qty"] is not None else 0.0
+        if sym in prices:
+            portfolio_value += qty * float(prices[sym])
+    asset = cash + portfolio_value
+    # upsert leaderboard
+    cur.execute(
+        """
+        INSERT INTO leaderboard (username, asset, days)
+        VALUES (?, ?, ?)
+        ON CONFLICT(username) DO UPDATE SET asset=excluded.asset, days=excluded.days
+        """,
+        (username, asset, days),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "asset": round(asset, 2), "days": days}
+
+
+if __name__ == "__main__":
+    # Allow running the server directly with: python server/main.py
+    import uvicorn
+    print("Starting Life_Simulator Server on http://127.0.0.1:8000 (reload disabled in __main__)...")
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=False)

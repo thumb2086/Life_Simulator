@@ -83,7 +83,10 @@ class ReportsChartsManager:
                 ax.set_xlabel("天數")
                 ax.set_ylabel("金額")
                 ax.grid(True, linestyle='--', alpha=0.3)
-                ax.legend(loc='upper left')
+                # 只有在有帶標籤的圖層時才顯示圖例，避免 UserWarning
+                handles, labels = ax.get_legend_handles_labels()
+                if labels:
+                    ax.legend(loc='upper left')
                 try:
                     g.report_fig.tight_layout()
                 except Exception:

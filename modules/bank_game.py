@@ -1023,6 +1023,30 @@ class BankGame:
             self._after_ids.append(aid)
         self.debug_log(f"schedule leaderboard after {LEADERBOARD_REFRESH_MS} ms -> id={aid}")
 
+    def start_event_timer(self):
+        """
+        Schedule the next random game event after a random delay.
+        Uses Tkinter's after() and records the id for proper cleanup.
+        """
+        try:
+            # Cancel previous scheduled event timer if any
+            old_id = self._after_map.get('event')
+            if old_id is not None:
+                try:
+                    self.root.after_cancel(old_id)
+                    self.debug_log(f"after_cancel name=event id={old_id}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Random delay between 15s ~ 30s for events
+        delay_ms = random.randint(15000, 30000)
+        aid = self.root.after(delay_ms, lambda: self._run_task('event', self.trigger_event))
+        self._after_map['event'] = aid
+        if hasattr(self, '_after_ids'):
+            self._after_ids.append(aid)
+        self.debug_log(f"schedule event after {delay_ms} ms -> id={aid}")
+
     def update_stock_info_label(self):
         pass 
 
