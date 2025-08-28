@@ -18,8 +18,7 @@ from reports_charts import ReportsChartsManager
 from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
-from dividend_manager import DividendManager
-from config import UNIFIED_TICK_MS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, PERSIST_DEBOUNCE_MS, STOCK_UPDATE_TICKS, MONTH_DAYS, API_BASE_URL, API_KEY
+from debug_panel import DebugPanel
 try:
     import requests  # optional for server sync
 except Exception:  # pragma: no cover
@@ -63,6 +62,8 @@ class BankGame:
         self.jobs = JobManager(self)
         # 股利/DRIP 管理器
         self.dividends = DividendManager(self)
+        # 調試面板
+        self.debug_panel = DebugPanel(self)
         self.create_ui()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
@@ -116,6 +117,8 @@ class BankGame:
             self._activity_consume('study')
             # 添加學習Buff：臨時提升智力成長
             self.data.add_buff('intelligence', 0.5, 1, '讀書學習效果')
+            # 增加活動計數
+            self.data.activity_study_count += 1
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_study_action error: {e}")
@@ -143,6 +146,8 @@ class BankGame:
             self._activity_consume('workout')
             # 添加健身Buff：臨時提升生產力
             self.data.add_buff('productivity', 0.3, 1, '健身訓練效果')
+            # 增加活動計數
+            self.data.activity_workout_count += 1
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_workout_action error: {e}")
@@ -170,6 +175,8 @@ class BankGame:
             self._activity_consume('social')
             # 添加社交Buff：臨時提升運氣
             self.data.add_buff('luck', 0.4, 1, '社交互動效果')
+            # 增加活動計數
+            self.data.activity_social_count += 1
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_social_action error: {e}")
@@ -196,6 +203,8 @@ class BankGame:
             self._activity_consume('meditate')
             # 添加冥想Buff：臨時提升運氣
             self.data.add_buff('luck', 0.5, 2, '冥想平靜效果')
+            # 增加活動計數
+            self.data.activity_meditate_count += 1
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_meditate_action error: {e}")
@@ -723,14 +732,15 @@ class BankGame:
                         edu_level = getattr(self.data, 'education_level', '高中')
                         edu_mult = float(getattr(self.data, 'education_multipliers', {}).get(edu_level, 1.0))
                         # 生產力加成（屬性 + Buff）：智力/勤奮/魅力/今日運氣，皆提供極小幅加成 + productivity buff
+                        # 平衡調整：生產力加成從0.8-1.3調整為0.9-1.4，提升整體生產力
                         try:
                             intel = float(getattr(self.data, 'intelligence', 50.0))
                             dili = float(getattr(self.data, 'diligence', 50.0))
                             chrm = float(getattr(self.data, 'charisma', 50.0))
                             luck = float(getattr(self.data, 'luck_today', 50.0))
                             prod_buff = self.data.get_buff_value('productivity')
-                            prod_mult = 1.0 + (intel - 50.0) / 500.0 + (dili - 50.0) / 500.0 + (chrm - 50.0) / 1000.0 + (luck - 50.0) / 1000.0 + prod_buff
-                            prod_mult = max(0.8, min(1.3, prod_mult))
+                            prod_mult = 0.9 + (intel - 50.0) / 500.0 + (dili - 50.0) / 500.0 + (chrm - 50.0) / 1000.0 + (luck - 50.0) / 1000.0 + prod_buff
+                            prod_mult = max(0.9, min(1.4, prod_mult))  # 平衡調整：提高最小值和最大值
                         except Exception:
                             prod_mult = 1.0
                         gross = round(gross_base * comp_mult * edu_mult * prod_mult, 2)

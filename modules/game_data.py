@@ -205,8 +205,18 @@ class GameData:
             '一級產業': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.01},
             '虛擬貨幣': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.03}
         }
-        self.cycle_transition_prob = 0.1  # 每個階段轉換的機率
-        self.cycle_duration_range = {'boom': (10, 30), 'normal': (20, 50), 'recession': (8, 25)}
+        # 活動計數追蹤（用於成就系統）
+        self.activity_study_count = 0
+        self.activity_workout_count = 0
+        self.activity_social_count = 0
+        self.activity_meditate_count = 0
+        
+        # 事件追蹤
+        self.event_count = 0
+        self.daily_positive_events = 0
+        self.black_swan_survived = 0
+        self.max_single_profit = 0
+        self.perfect_day_count = 0
         # 股票定投：{code: {amount_cash: float, interval_days: int, next_day: int}}
         self.dca_stocks = {}
         # 基金定投：{fname: {amount_cash: float, interval_days: int, next_day: int}}

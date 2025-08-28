@@ -34,6 +34,11 @@ def create_header_section(root, game):
     right = ttk.Frame(top_frame)
     right.pack(side=tk.RIGHT, anchor='e', padx=10)
     
+    # 右上角添加調試按鈕（僅開發者模式）
+    debug_frame = ttk.Frame(right)
+    debug_frame.pack(side=tk.TOP, anchor='e', pady=(0, 5))
+    ttk.Button(debug_frame, text="🐛 調試", command=lambda: game.debug_panel.show()).pack(side=tk.RIGHT)
+    
     # 左：登入區塊
     game.top_left_frame = left
     
