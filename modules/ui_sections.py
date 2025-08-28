@@ -381,9 +381,13 @@ def create_main_tabs(root, game):
     ttk.Label(select_row, text="選擇職業：", font=FONT).pack(side=tk.LEFT, padx=6)
     job_names = list(getattr(game.data, 'jobs_catalog', {}).keys())
     game.job_select_var = tk.StringVar(value=(job_names[0] if job_names else ""))
-    job_combo = ttk.Combobox(select_row, textvariable=game.job_select_var, values=job_names, font=FONT, state='readonly', width=16)
-    job_combo.pack(side=tk.LEFT, padx=6)
-    ttk.Button(select_row, text="就職", command=game.ui_select_job, width=10).pack(side=tk.LEFT, padx=6)
+    job_combo = ttk.Combobox(select_row, textvariable=game.job_select_var, values=job_names, font=FONT, state='readonly', width=20, height=8)
+    job_combo.pack(side=tk.LEFT, padx=6, ipady=3)
+    # 設定下拉選單樣式
+    style = ttk.Style()
+    style.configure('TCombobox', font=FONT, background='#ffffff', foreground='#000000')
+    style.map('TCombobox', fieldbackground=[('readonly', '#ffffff')])
+    ttk.Button(select_row, text="就職", command=game.ui_select_job, width=12).pack(side=tk.LEFT, padx=6)
     ttk.Button(select_row, text="申請升職", command=game.promote_job, width=12).pack(side=tk.LEFT, padx=6)
     # 公司選擇與進修
     company_row = ttk.Frame(job_frame)

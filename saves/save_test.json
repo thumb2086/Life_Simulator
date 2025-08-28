@@ -1,10 +1,12 @@
 {
   "reborn_count": 0,
   "balance": 0,
-  "cash": 765.0,
+  "cash": 807.75,
   "loan": 0,
   "deposit_interest_rate": 0.01,
   "loan_interest_rate": 0.005,
+  "active_buffs": [],
+  "current_difficulty": "normal",
   "stocks": {
     "TSMC": {
       "name": "台積電",
@@ -771,7 +773,7 @@
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 1078024.9901312804,
+      "price": 1092953,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -786,13 +788,14 @@
         1235945.96,
         1238594.77,
         1236759.91,
-        1234776.26
+        1234776.26,
+        1092953
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 10
+      "next_dividend_day": 11
     }
   },
   "btc_balance": 0.0,
@@ -1065,6 +1068,26 @@
     {
       "timestamp": "2025-07-24 22:44:07",
       "message": "隨機事件：通縮來襲 - 通縮來襲，所有股票價格下跌，現金購買力上升！｜影響：所有股票價格下跌，但現金購買力上升！"
+    },
+    {
+      "timestamp": "2025-08-28 20:19:21",
+      "message": "加入固定支出：水電瓦斯 $50.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-28 20:19:21",
+      "message": "加入固定支出：網路費 $25.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-28 20:19:21",
+      "message": "加入固定支出：手機費 $20.00 (monthly)"
+    },
+    {
+      "timestamp": "2025-08-28 20:19:27",
+      "message": "已選擇工作：實習生，日薪 $50.00"
+    },
+    {
+      "timestamp": "2025-08-28 20:22:19",
+      "message": "薪資入帳：毛薪 $45.00 (基礎 $50.00 x 公司1.00 x 學歷1.00 x 生產力0.90)，扣稅 $2.25，實領 $42.75"
     }
   ],
   "last_slot_win": 0,
@@ -1073,7 +1096,1022 @@
     "rich",
     "payoff_loan"
   ],
-  "days": 10,
+  "days": 11,
+  "happiness": 50,
+  "stamina": 50,
+  "intelligence": 50,
+  "diligence": 50,
+  "charisma": 50,
+  "experience": 1.0,
+  "luck_today": 44.0,
+  "last_luck_day": 11,
+  "activity_rules": {
+    "study": {
+      "daily_max": 3,
+      "cooldown_days": 1
+    },
+    "workout": {
+      "daily_max": 3,
+      "cooldown_days": 1
+    },
+    "social": {
+      "daily_max": 3,
+      "cooldown_days": 1
+    },
+    "meditate": {
+      "daily_max": 3,
+      "cooldown_days": 1
+    }
+  },
+  "activity_state": {
+    "study": {
+      "remaining": 3,
+      "cd_left": 0
+    },
+    "workout": {
+      "remaining": 3,
+      "cd_left": 0
+    },
+    "social": {
+      "remaining": 3,
+      "cd_left": 0
+    },
+    "meditate": {
+      "remaining": 3,
+      "cd_left": 0
+    }
+  },
+  "job": {
+    "name": "實習生",
+    "level": 1,
+    "salary_per_day": 50.0,
+    "tax_rate": 0.05,
+    "next_promotion_day": 17
+  },
+  "current_company": "一般公司",
+  "companies_catalog": {
+    "一般公司": {
+      "salary_multiplier": 1.0
+    },
+    "宇宙科技": {
+      "salary_multiplier": 1.1
+    },
+    "幸福生活": {
+      "salary_multiplier": 0.95
+    }
+  },
+  "income_history": [
+    {
+      "day": 11,
+      "type": "salary",
+      "gross": 45.0,
+      "tax": 2.25,
+      "net": 42.75
+    }
+  ],
+  "education_level": "高中",
+  "education_levels": [
+    "高中",
+    "大學",
+    "碩士",
+    "博士",
+    "博士後"
+  ],
+  "education_multipliers": {
+    "高中": 1.0,
+    "大學": 1.1,
+    "碩士": 1.25,
+    "博士": 1.4,
+    "博士後": 1.6
+  },
+  "education_upgrade_cost": {
+    "大學": 10000.0,
+    "碩士": 30000.0,
+    "博士": 80000.0,
+    "博士後": 150000.0
+  },
+  "education_study_progress": {},
+  "professional_skills": {
+    "技術能力": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "溝通能力": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "領導能力": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "創意思考": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "分析能力": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "團隊合作": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "問題解決": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    },
+    "時間管理": {
+      "level": 1,
+      "experience": 0,
+      "max_level": 10
+    }
+  },
+  "career_paths": {
+    "科技": {
+      "levels": [
+        "實習工程師",
+        "初級工程師",
+        "資深工程師",
+        "架構師",
+        "技術總監"
+      ],
+      "requirements": {
+        "實習工程師": {
+          "education": "大學",
+          "skills": {
+            "技術能力": 2
+          }
+        },
+        "初級工程師": {
+          "education": "大學",
+          "skills": {
+            "技術能力": 4
+          },
+          "experience": 2
+        },
+        "資深工程師": {
+          "education": "碩士",
+          "skills": {
+            "技術能力": 6
+          },
+          "experience": 5
+        },
+        "架構師": {
+          "education": "博士",
+          "skills": {
+            "技術能力": 8,
+            "領導能力": 5
+          },
+          "experience": 8
+        },
+        "技術總監": {
+          "education": "博士",
+          "skills": {
+            "技術能力": 10,
+            "領導能力": 8
+          },
+          "experience": 12
+        }
+      }
+    },
+    "管理": {
+      "levels": [
+        "助理",
+        "專員",
+        "經理",
+        "總經理",
+        "執行長"
+      ],
+      "requirements": {
+        "助理": {
+          "education": "大學",
+          "skills": {
+            "溝通能力": 2
+          }
+        },
+        "專員": {
+          "education": "大學",
+          "skills": {
+            "溝通能力": 4,
+            "分析能力": 3
+          },
+          "experience": 2
+        },
+        "經理": {
+          "education": "碩士",
+          "skills": {
+            "領導能力": 5,
+            "溝通能力": 6
+          },
+          "experience": 5
+        },
+        "總經理": {
+          "education": "博士",
+          "skills": {
+            "領導能力": 8,
+            "戰略思維": 7
+          },
+          "experience": 10
+        },
+        "執行長": {
+          "education": "博士後",
+          "skills": {
+            "領導能力": 10,
+            "戰略思維": 9
+          },
+          "experience": 15
+        }
+      }
+    },
+    "創意": {
+      "levels": [
+        "助理設計師",
+        "初級設計師",
+        "資深設計師",
+        "創意總監",
+        "藝術總監"
+      ],
+      "requirements": {
+        "助理設計師": {
+          "education": "大學",
+          "skills": {
+            "創意思考": 3
+          }
+        },
+        "初級設計師": {
+          "education": "大學",
+          "skills": {
+            "創意思考": 5,
+            "技術能力": 3
+          },
+          "experience": 2
+        },
+        "資深設計師": {
+          "education": "碩士",
+          "skills": {
+            "創意思考": 7,
+            "溝通能力": 5
+          },
+          "experience": 6
+        },
+        "創意總監": {
+          "education": "博士",
+          "skills": {
+            "創意思考": 9,
+            "領導能力": 6
+          },
+          "experience": 10
+        },
+        "藝術總監": {
+          "education": "博士後",
+          "skills": {
+            "創意思考": 10,
+            "領導能力": 8
+          },
+          "experience": 15
+        }
+      }
+    }
+  },
+  "current_career_path": null,
+  "career_level": 0,
+  "career_experience": 0,
+  "career_history": [],
+  "jobs_catalog": {
+    "實習生": {
+      "base_salary_per_day": 50.0,
+      "tax_rate": 0.05
+    },
+    "工程師": {
+      "base_salary_per_day": 120.0,
+      "tax_rate": 0.1
+    },
+    "資深工程師": {
+      "base_salary_per_day": 200.0,
+      "tax_rate": 0.12
+    },
+    "經理": {
+      "base_salary_per_day": 300.0,
+      "tax_rate": 0.15
+    }
+  },
+  "expenses": [
+    {
+      "name": "水電瓦斯",
+      "amount": 50.0,
+      "frequency": "monthly",
+      "next_due_day": 41
+    },
+    {
+      "name": "網路費",
+      "amount": 25.0,
+      "frequency": "monthly",
+      "next_due_day": 41
+    },
+    {
+      "name": "手機費",
+      "amount": 20.0,
+      "frequency": "monthly",
+      "next_due_day": 41
+    }
+  ],
+  "expense_history": [],
+  "expense_defaults_added": true,
+  "store_catalog": {
+    "subscriptions": {
+      "Netflix 訂閱": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 15.0,
+        "frequency": "monthly"
+      },
+      "Spotify 訂閱": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 10.0,
+        "frequency": "monthly"
+      },
+      "健身房會員": {
+        "price": 0.0,
+        "type": "subscription",
+        "amount": 30.0,
+        "frequency": "monthly"
+      }
+    },
+    "goods": {
+      "筆電": {
+        "price": 800.0,
+        "type": "goods"
+      },
+      "自行車": {
+        "price": 150.0,
+        "type": "goods"
+      }
+    }
+  },
+  "consumables": {
+    "energy_drink": {
+      "name": "能量飲料",
+      "price": 50,
+      "effects": [
+        {
+          "type": "stamina",
+          "value": 20,
+          "duration": 0
+        },
+        {
+          "type": "buff",
+          "stat": "productivity",
+          "value": 0.2,
+          "duration": 24
+        }
+      ],
+      "daily_limit": 5,
+      "daily_bought": 0,
+      "description": "立即恢復20體力，並在24小時內提升20%生產力",
+      "important": false
+    },
+    "study_kit": {
+      "name": "學習套組",
+      "price": 100,
+      "effects": [
+        {
+          "type": "buff",
+          "stat": "intelligence",
+          "value": 0.3,
+          "duration": 72
+        },
+        {
+          "type": "buff",
+          "stat": "study_efficiency",
+          "value": 0.5,
+          "duration": 72
+        }
+      ],
+      "daily_limit": 3,
+      "daily_bought": 0,
+      "description": "72小時內提升30%智力成長與50%學習效率",
+      "important": false
+    },
+    "social_card": {
+      "name": "社交卡",
+      "price": 80,
+      "effects": [
+        {
+          "type": "buff",
+          "stat": "charisma",
+          "value": 0.4,
+          "duration": 48
+        },
+        {
+          "type": "buff",
+          "stat": "luck",
+          "value": 0.3,
+          "duration": 24
+        }
+      ],
+      "daily_limit": 3,
+      "daily_bought": 0,
+      "description": "48小時內提升40%魅力，24小時內提升30%運氣",
+      "important": false
+    }
+  },
+  "inventory": {
+    "energy_drink": 0,
+    "study_kit": 0,
+    "social_card": 0
+  },
+  "difficulty_levels": {
+    "easy": {
+      "salary_multiplier": 1.2,
+      "expense_multiplier": 0.8,
+      "stock_volatility": 0.8,
+      "event_frequency": 0.8,
+      "event_severity": 0.8,
+      "activity_benefit": 1.2,
+      "activity_cooldown": 0.8
+    },
+    "normal": {
+      "salary_multiplier": 1.0,
+      "expense_multiplier": 1.0,
+      "stock_volatility": 1.0,
+      "event_frequency": 1.0,
+      "event_severity": 1.0,
+      "activity_benefit": 1.0,
+      "activity_cooldown": 1.0
+    },
+    "hard": {
+      "salary_multiplier": 0.8,
+      "expense_multiplier": 1.2,
+      "stock_volatility": 1.2,
+      "event_frequency": 1.2,
+      "event_severity": 1.2,
+      "activity_benefit": 0.8,
+      "activity_cooldown": 1.2
+    }
+  },
+  "economic_cycles": {
+    "科技業": {
+      "phase": "normal",
+      "strength": 1.0,
+      "duration": 1,
+      "volatility": 0.01
+    },
+    "服務業": {
+      "phase": "normal",
+      "strength": 1.0,
+      "duration": 0,
+      "volatility": 0.01
+    },
+    "一級產業": {
+      "phase": "normal",
+      "strength": 1.0,
+      "duration": 0,
+      "volatility": 0.01
+    },
+    "虛擬貨幣": {
+      "phase": "normal",
+      "strength": 1.0,
+      "duration": 0,
+      "volatility": 0.03
+    }
+  },
+  "activity_study_count": 0,
+  "activity_workout_count": 0,
+  "activity_social_count": 0,
+  "activity_meditate_count": 0,
+  "event_count": 0,
+  "daily_positive_events": 0,
+  "black_swan_survived": 0,
+  "max_single_profit": 0,
+  "social_contacts": {
+    "friend_1": {
+      "name": "小明",
+      "relationship": "朋友",
+      "affinity": 50,
+      "last_interaction": 0,
+      "description": "大學同學，喜歡聊天"
+    },
+    "friend_2": {
+      "name": "小華",
+      "relationship": "朋友",
+      "affinity": 45,
+      "last_interaction": 0,
+      "description": "同事，熱愛運動"
+    },
+    "family_1": {
+      "name": "媽媽",
+      "relationship": "家人",
+      "affinity": 80,
+      "last_interaction": 0,
+      "description": "母親，總是關心你"
+    },
+    "colleague_1": {
+      "name": "老闆",
+      "relationship": "同事",
+      "affinity": 30,
+      "last_interaction": 0,
+      "description": "公司主管，工作機會的來源"
+    }
+  },
+  "social_events": [],
+  "available_social_activities": {
+    "meet_friend": {
+      "name": "見朋友",
+      "cost": 30,
+      "stamina_cost": 5,
+      "affinity_gain": 5
+    },
+    "family_gathering": {
+      "name": "家庭聚會",
+      "cost": 50,
+      "stamina_cost": 8,
+      "affinity_gain": 8
+    },
+    "business_networking": {
+      "name": "商業社交",
+      "cost": 80,
+      "stamina_cost": 10,
+      "affinity_gain": 6
+    },
+    "date_night": {
+      "name": "約會",
+      "cost": 100,
+      "stamina_cost": 12,
+      "affinity_gain": 12
+    },
+    "party": {
+      "name": "參加派對",
+      "cost": 60,
+      "stamina_cost": 15,
+      "affinity_gain": 10
+    }
+  },
+  "social_cooldowns": {},
+  "houses_catalog": {
+    "apartment_small": {
+      "name": "小公寓",
+      "price": 50000,
+      "maintenance_cost": 500,
+      "capacity": 2,
+      "description": "適合單身或小家庭的溫馨住所"
+    },
+    "apartment_medium": {
+      "name": "中型公寓",
+      "price": 150000,
+      "maintenance_cost": 1200,
+      "capacity": 4,
+      "description": "舒適的居住環境，適合小家庭"
+    },
+    "house_small": {
+      "name": "小型透天",
+      "price": 300000,
+      "maintenance_cost": 2000,
+      "capacity": 6,
+      "description": "獨立的透天住宅，有小院子"
+    },
+    "house_large": {
+      "name": "大型別墅",
+      "price": 800000,
+      "maintenance_cost": 5000,
+      "capacity": 10,
+      "description": "豪華別墅，寬敞舒適的生活空間"
+    }
+  },
+  "current_house": null,
+  "house_furniture": {},
+  "furniture_catalog": {
+    "bed_basic": {
+      "name": "基礎床鋪",
+      "price": 2000,
+      "comfort": 5,
+      "category": "bedroom"
+    },
+    "bed_luxury": {
+      "name": "豪華床鋪",
+      "price": 8000,
+      "comfort": 15,
+      "category": "bedroom"
+    },
+    "sofa_basic": {
+      "name": "基礎沙發",
+      "price": 3000,
+      "comfort": 8,
+      "category": "living_room"
+    },
+    "sofa_luxury": {
+      "name": "豪華沙發",
+      "price": 12000,
+      "comfort": 20,
+      "category": "living_room"
+    },
+    "table_dining": {
+      "name": "餐桌組",
+      "price": 5000,
+      "comfort": 10,
+      "category": "dining"
+    },
+    "kitchen_appliance": {
+      "name": "廚房電器",
+      "price": 10000,
+      "comfort": 12,
+      "category": "kitchen"
+    },
+    "entertainment_system": {
+      "name": "娛樂系統",
+      "price": 15000,
+      "comfort": 18,
+      "category": "living_room"
+    },
+    "home_office": {
+      "name": "家庭辦公室",
+      "price": 8000,
+      "comfort": 14,
+      "category": "office"
+    }
+  },
+  "house_comfort_level": 0,
+  "house_maintenance_due": 0,
+  "destinations_catalog": {
+    "tokyo": {
+      "name": "東京",
+      "cost": 30000,
+      "duration": 7,
+      "experience_gain": 50,
+      "culture_bonus": 15,
+      "description": "現代都市，科技與傳統並存",
+      "special_events": [
+        "富士山之旅",
+        "淺草寺參拜",
+        "銀座購物"
+      ]
+    },
+    "paris": {
+      "name": "巴黎",
+      "cost": 45000,
+      "duration": 10,
+      "experience_gain": 70,
+      "culture_bonus": 20,
+      "description": "浪漫之都，藝術與時尚的殿堂",
+      "special_events": [
+        "艾菲爾鐵塔",
+        "盧浮宮參觀",
+        "塞納河遊船"
+      ]
+    },
+    "bali": {
+      "name": "峇里島",
+      "cost": 25000,
+      "duration": 14,
+      "experience_gain": 60,
+      "culture_bonus": 25,
+      "description": "熱帶度假勝地，寧靜與冒險並存",
+      "special_events": [
+        "海灘度假",
+        "火山登山",
+        "傳統舞蹈表演"
+      ]
+    },
+    "new_york": {
+      "name": "紐約",
+      "cost": 50000,
+      "duration": 12,
+      "experience_gain": 80,
+      "culture_bonus": 18,
+      "description": "大蘋果，夢想的起點",
+      "special_events": [
+        "時代廣場",
+        "中央公園",
+        "博物館巡禮"
+      ]
+    },
+    "kyoto": {
+      "name": "京都",
+      "cost": 28000,
+      "duration": 8,
+      "experience_gain": 55,
+      "culture_bonus": 30,
+      "description": "日本古都，傳統文化寶庫",
+      "special_events": [
+        "金閣寺",
+        "嵐山賞楓",
+        "茶道體驗"
+      ]
+    }
+  },
+  "travel_history": [],
+  "current_trip": null,
+  "health_status": 100,
+  "mental_health": 100,
+  "immune_system": 100,
+  "current_illnesses": [],
+  "past_illnesses": [],
+  "illness_resistance": {},
+  "medical_records": [],
+  "health_insurance": null,
+  "medical_costs_paid": 0,
+  "daily_exercise": 0,
+  "sleep_quality": 100,
+  "diet_quality": 100,
+  "stress_level": 0,
+  "health_activities": {
+    "輕度運動": {
+      "stamina_cost": 10,
+      "health_gain": 5,
+      "duration": 30
+    },
+    "中度運動": {
+      "stamina_cost": 20,
+      "health_gain": 10,
+      "duration": 60
+    },
+    "劇烈運動": {
+      "stamina_cost": 35,
+      "health_gain": 15,
+      "duration": 90
+    },
+    "冥想放鬆": {
+      "stamina_cost": 5,
+      "mental_gain": 10,
+      "duration": 20
+    },
+    "健康檢查": {
+      "cost": 200,
+      "health_boost": 20,
+      "duration": 60
+    },
+    "營養補充": {
+      "cost": 50,
+      "health_gain": 8,
+      "duration": 10
+    },
+    "按摩治療": {
+      "cost": 150,
+      "stress_reduction": 20,
+      "duration": 45
+    },
+    "心理諮詢": {
+      "cost": 300,
+      "mental_gain": 25,
+      "duration": 60
+    }
+  },
+  "disease_types": {
+    "感冒": {
+      "severity": "mild",
+      "duration_days": 7,
+      "health_penalty": 15,
+      "stamina_penalty": 20,
+      "contagious": true,
+      "treatment_cost": 100
+    },
+    "流感": {
+      "severity": "moderate",
+      "duration_days": 14,
+      "health_penalty": 25,
+      "stamina_penalty": 35,
+      "contagious": true,
+      "treatment_cost": 300
+    },
+    "肺炎": {
+      "severity": "severe",
+      "duration_days": 21,
+      "health_penalty": 40,
+      "stamina_penalty": 50,
+      "contagious": false,
+      "treatment_cost": 800
+    },
+    "胃腸炎": {
+      "severity": "moderate",
+      "duration_days": 5,
+      "health_penalty": 20,
+      "stamina_penalty": 30,
+      "contagious": true,
+      "treatment_cost": 200
+    },
+    "憂鬱症": {
+      "severity": "moderate",
+      "duration_days": 30,
+      "mental_penalty": 30,
+      "happiness_penalty": 25,
+      "contagious": false,
+      "treatment_cost": 500
+    },
+    "焦慮症": {
+      "severity": "mild",
+      "duration_days": 20,
+      "mental_penalty": 20,
+      "happiness_penalty": 15,
+      "contagious": false,
+      "treatment_cost": 350
+    },
+    "慢性疲勞": {
+      "severity": "moderate",
+      "duration_days": 45,
+      "stamina_penalty": 25,
+      "health_penalty": 10,
+      "contagious": false,
+      "treatment_cost": 600
+    }
+  },
+  "funds_catalog": {
+    "台灣科技ETF": {
+      "weights": {
+        "TSMC": 0.5,
+        "HONHAI": 0.3,
+        "MTK": 0.2
+      },
+      "fee_rate": 0.002
+    },
+    "服務業綜合ETF": {
+      "weights": {
+        "RETAIL": 0.34,
+        "RESTAURANT": 0.33,
+        "TRAVEL": 0.33
+      },
+      "fee_rate": 0.002
+    },
+    "一級產業ETF": {
+      "weights": {
+        "MINING": 0.34,
+        "FARM": 0.33,
+        "FOREST": 0.33
+      },
+      "fee_rate": 0.002
+    }
+  },
+  "funds": {
+    "台灣科技ETF": {
+      "nav": 79.8775,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0,
+        79.8775
+      ],
+      "base_prices": {
+        "TSMC": 100,
+        "HONHAI": 80,
+        "MTK": 120
+      }
+    },
+    "服務業綜合ETF": {
+      "nav": 71.5384,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0,
+        71.5384
+      ],
+      "base_prices": {
+        "RETAIL": 70,
+        "RESTAURANT": 65,
+        "TRAVEL": 75
+      }
+    },
+    "一級產業ETF": {
+      "nav": 114.6261,
+      "units": 0.0,
+      "total_cost": 0.0,
+      "history": [
+        100.0,
+        114.6261
+      ],
+      "base_prices": {
+        "MINING": 60,
+        "FARM": 50,
+        "FOREST": 55
+      }
+    }
+  },
+  "businesses": [],
   "slot_total_win": 4800,
-  "slot_win_streak": 0
+  "slot_win_streak": 0,
+  "dca_stocks": {},
+  "dca_funds": {},
+  "seasons": [
+    "spring",
+    "summer",
+    "autumn",
+    "winter"
+  ],
+  "current_season": "spring",
+  "season_duration_days": 90,
+  "day_of_season": 0,
+  "weather_types": {
+    "sunny": {
+      "name": "晴天",
+      "effect": {
+        "happiness": 5,
+        "energy": 10
+      }
+    },
+    "cloudy": {
+      "name": "陰天",
+      "effect": {
+        "happiness": -2,
+        "energy": 5
+      }
+    },
+    "rainy": {
+      "name": "雨天",
+      "effect": {
+        "happiness": -5,
+        "energy": -5
+      }
+    },
+    "stormy": {
+      "name": "暴風雨",
+      "effect": {
+        "happiness": -10,
+        "energy": -15
+      }
+    },
+    "snowy": {
+      "name": "雪天",
+      "effect": {
+        "happiness": 5,
+        "energy": -10
+      }
+    }
+  },
+  "current_weather": "sunny",
+  "weather_duration": 0,
+  "seasonal_activities": {
+    "spring": {
+      "name": "春天",
+      "activities": [
+        "賞花",
+        "踏青",
+        "植樹",
+        "春遊"
+      ],
+      "effects": {
+        "happiness": 10,
+        "health": 5
+      },
+      "special_events": [
+        "櫻花季",
+        "春雨綿綿"
+      ]
+    },
+    "summer": {
+      "name": "夏天",
+      "activities": [
+        "游泳",
+        "度假",
+        "吃冰",
+        "避暑"
+      ],
+      "effects": {
+        "happiness": 8,
+        "stamina": -10
+      },
+      "special_events": [
+        "暑假旅行",
+        "海灘派對"
+      ]
+    },
+    "autumn": {
+      "name": "秋天",
+      "activities": [
+        "賞楓",
+        "秋遊",
+        "採果",
+        "賞月"
+      ],
+      "effects": {
+        "happiness": 12,
+        "intelligence": 5
+      },
+      "special_events": [
+        "中秋節",
+        "楓葉季"
+      ]
+    },
+    "winter": {
+      "name": "冬天",
+      "activities": [
+        "賞雪",
+        "溫泉",
+        "滑雪",
+        "圍爐"
+      ],
+      "effects": {
+        "happiness": 6,
+        "stamina": -5
+      },
+      "special_events": [
+        "聖誕節",
+        "跨年活動"
+      ]
+    }
+  }
 }

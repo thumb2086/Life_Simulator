@@ -499,17 +499,56 @@ class GameData:
             }
 
     def save(self, file_path, show_error=None):
+        """儲存遊戲資料到檔案"""
         try:
-            if hasattr(self, 'achievements_manager'):
-                self.achievements_unlocked = self.achievements_manager.export_unlocked_keys()
+            # 嘗試匯出成就資料
+            if hasattr(self, 'achievements_manager') and self.achievements_manager:
+                try:
+                    if hasattr(self.achievements_manager, 'export_unlocked_keys'):
+                        self.achievements_unlocked = self.achievements_manager.export_unlocked_keys()
+                    else:
+                        # 如果沒有 export_unlocked_keys 方法，使用預設值
+                        if not hasattr(self, 'achievements_unlocked'):
+                            self.achievements_unlocked = []
+                except Exception as e:
+                    # 如果成就匯出失敗，使用預設值
+                    if not hasattr(self, 'achievements_unlocked'):
+                        self.achievements_unlocked = []
+                    logging.warning(f"成就資料匯出失敗: {e}")
+
+            # 準備要儲存的資料，排除 achievements_manager 物件
             data = {k: v for k, v in self.__dict__.items() if k != 'achievements_manager'}
+
+            # 確保資料夾存在
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+            # 嘗試儲存檔案
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
+                json.dump(data, f, ensure_ascii=False, indent=2, default=str)
+
+            logging.info(f"遊戲已成功儲存到: {file_path}")
+            return True
+
+        except PermissionError as e:
+            error_msg = f"沒有權限寫入檔案: {e}"
+            logging.error(error_msg)
             if show_error:
-                show_error(f"存檔失敗：{e}")
-            else:
-                logging.error(f"存檔失敗：{e}")
+                show_error(f"存檔失敗：{error_msg}")
+            return False
+
+        except OSError as e:
+            error_msg = f"檔案系統錯誤: {e}"
+            logging.error(error_msg)
+            if show_error:
+                show_error(f"存檔失敗：{error_msg}")
+            return False
+
+        except Exception as e:
+            error_msg = f"存檔失敗：{e}"
+            logging.error(error_msg)
+            if show_error:
+                show_error(error_msg)
+            return False
 
 
     def load(self, file_path, show_error=None):

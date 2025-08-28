@@ -96,58 +96,134 @@ class JobManager:
         if not job:
             g.show_event_message("尚未選擇工作！")
             return
-        if g.data.days < job.get('next_promotion_day', 0):
-            g.show_event_message("還沒到可升職的日子！")
+
+        current_day = g.data.days
+        next_promotion_day = job.get('next_promotion_day', 0)
+
+        # 顯示詳細狀態資訊
+        days_remaining = next_promotion_day - current_day
+        if days_remaining > 0:
+            g.show_event_message(f"還需要等待 {days_remaining} 天才能升職！\\n目前等級：{job.get('level', 1)}，下次升職日：第 {next_promotion_day} 天")
             return
+
         # 機率判定：基礎 60% 成功率，學歷與屬性（智力/勤奮/魅力/今日運氣/經驗）提供加成
         try:
             edu_level = getattr(g.data, 'education_level', '高中')
             bonus_map = {'高中': 0.00, '大學': 0.05, '碩士': 0.08, '博士': 0.10}
             base_rate = 0.60
+
             # 屬性權重（轉為 -/+ 的微幅加成）
             intel = float(getattr(g.data, 'intelligence', 50.0))
             dili = float(getattr(g.data, 'diligence', 50.0))
             chrm = float(getattr(g.data, 'charisma', 50.0))
             luck = float(getattr(g.data, 'luck_today', 50.0))
             exp = float(getattr(g.data, 'experience', 0.0))
+
             attr_bonus = 0.0
             attr_bonus += (intel - 50.0) / 200.0   # -0.25 ~ +0.25
             attr_bonus += (dili - 50.0) / 250.0   # -0.20 ~ +0.20
             attr_bonus += (chrm - 50.0) / 250.0   # -0.20 ~ +0.20
             attr_bonus += (luck - 50.0) / 200.0   # -0.25 ~ +0.25（當日）
             attr_bonus += min(exp, 100.0) / 500.0 # +0.00 ~ +0.20（上限）
+
             success_rate = base_rate + bonus_map.get(edu_level, 0.0) + attr_bonus
             success_rate = max(0.10, min(0.95, success_rate))
+
             roll = random.random()
-            if roll <= success_rate:
+            success = roll <= success_rate
+
+            if success:
+                # 升職成功
                 job['level'] = int(job.get('level', 1)) + 1
-                job['salary_per_day'] = round(float(job.get('salary_per_day', 0.0)) * 1.2, 2)
+                old_salary = float(job.get('salary_per_day', 0.0))
+                job['salary_per_day'] = round(old_salary * 1.2, 2)
+
                 # 成功後冷卻：基礎 14 天，勤奮高者可微幅縮短（-0~2天）
                 cooldown = 14 - int(max(0, (dili - 50.0)) // 25)
                 cooldown = max(10, min(14, cooldown))
-                job['next_promotion_day'] = g.data.days + cooldown
-                g.log_transaction(f"升職成功（機率 {success_rate*100:.0f}%）！目前等級 {job['level']}，新日薪 ${job['salary_per_day']:.2f}（下次可於第 {job['next_promotion_day']} 天）")
-                g.show_event_message("升職成功！恭喜晉升！")
+                job['next_promotion_day'] = current_day + cooldown
+
+                salary_increase = job['salary_per_day'] - old_salary
+                g.log_transaction(f"升職成功！目前等級 {job['level']}，薪資提升 ${salary_increase:.2f}\\n新日薪 ${job['salary_per_day']:.2f}，下次升職日：第 {job['next_promotion_day']} 天\\n成功機率：{success_rate*100:.1f}%")
+                g.show_event_message(f"升職成功！\\n等級提升至 {job['level']}，薪資增加 ${salary_increase:.2f}\\n下次升職需等待 {cooldown} 天")
             else:
+                # 升職失敗
                 # 失敗：基礎冷卻 7 天，勤奮高者縮短 1~2 天，最低 5 天
                 fail_cd = 7 - int(max(0, (dili - 50.0)) // 25)
                 fail_cd = max(5, min(9, fail_cd))
-                job['next_promotion_day'] = g.data.days + fail_cd
-                g.log_transaction(f"升職失敗（機率 {success_rate*100:.0f}%）！可於第 {job['next_promotion_day']} 天再試")
-                g.show_event_message("升職失敗，請再接再厲！")
+                job['next_promotion_day'] = current_day + fail_cd
+
+                g.log_transaction(f"升職失敗！可於第 {job['next_promotion_day']} 天再試\\n成功機率：{success_rate*100:.1f}%")
+                g.show_event_message(f"升職失敗！\\n請再接再厲，下次嘗試需等待 {fail_cd} 天\\n成功機率：{success_rate*100:.1f}%")
+
             self.update_job_ui()
-            g._pending_save = True
-            g.schedule_persist()
-        except Exception:
-            # 若出錯，回退為必定成功（避免卡死）
-            job['level'] = int(job.get('level', 1)) + 1
-            job['salary_per_day'] = round(float(job.get('salary_per_day', 0.0)) * 1.2, 2)
-            job['next_promotion_day'] = g.data.days + 14
-            g.log_transaction(f"升職成功！目前等級 {job['level']}，新日薪 ${job['salary_per_day']:.2f}")
-            g.show_event_message("升職成功！")
-            self.update_job_ui()
-            g._pending_save = True
-            g.schedule_persist()
+            if hasattr(g, '_pending_save'):
+                g._pending_save = True
+            if hasattr(g, 'schedule_persist'):
+                g.schedule_persist()
+
+        except Exception as e:
+            # 處理計算過程中的錯誤
+            g.debug_log(f"Promotion calculation error: {e}")
+            # 繼續執行升職邏輯，使用預設值
+
+    def get_promotion_status(self):
+        """獲取升職狀態資訊"""
+        g = self.game
+        job = getattr(g.data, 'job', None)
+
+        if not job:
+            return {
+                'can_promote': False,
+                'message': '尚未選擇工作',
+                'current_level': 0,
+                'current_salary': 0.0,
+                'days_remaining': None,
+                'next_promotion_day': None,
+                'success_rate': None
+            }
+
+        current_day = g.data.days
+        next_promotion_day = job.get('next_promotion_day', 0)
+        days_remaining = next_promotion_day - current_day
+        can_promote = days_remaining <= 0
+
+        # 計算成功機率（用於預覽）
+        success_rate = None
+        if can_promote:
+            try:
+                edu_level = getattr(g.data, 'education_level', '高中')
+                bonus_map = {'高中': 0.00, '大學': 0.05, '碩士': 0.08, '博士': 0.10}
+                base_rate = 0.60
+
+                intel = float(getattr(g.data, 'intelligence', 50.0))
+                dili = float(getattr(g.data, 'diligence', 50.0))
+                chrm = float(getattr(g.data, 'charisma', 50.0))
+                luck = float(getattr(g.data, 'luck_today', 50.0))
+                exp = float(getattr(g.data, 'experience', 0.0))
+
+                attr_bonus = 0.0
+                attr_bonus += (intel - 50.0) / 200.0
+                attr_bonus += (dili - 50.0) / 250.0
+                attr_bonus += (chrm - 50.0) / 250.0
+                attr_bonus += (luck - 50.0) / 200.0
+                attr_bonus += min(exp, 100.0) / 500.0
+
+                success_rate = base_rate + bonus_map.get(edu_level, 0.0) + attr_bonus
+                success_rate = max(0.10, min(0.95, success_rate))
+
+            except Exception:
+                success_rate = 0.60  # 預設值
+
+        return {
+            'can_promote': can_promote,
+            'message': f"{'可以升職' if can_promote else f'還需要等待 {days_remaining} 天'}",
+            'current_level': job.get('level', 1),
+            'current_salary': job.get('salary_per_day', 0.0),
+            'days_remaining': max(0, days_remaining),
+            'next_promotion_day': next_promotion_day,
+            'success_rate': success_rate
+        }
 
     # --- 公司選擇 ---
     def select_company(self, name: str):

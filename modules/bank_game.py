@@ -20,6 +20,15 @@ from logger import GameLogger
 from job_manager import JobManager
 from achievement_gallery import AchievementGallery
 from travel_system import TravelSystem
+from config import PERSIST_DEBOUNCE_MS, UNIFIED_TICK_MS, API_BASE_URL, API_KEY, STOCK_UPDATE_TICKS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE, MONTH_DAYS
+from dividend_manager import DividendManager
+from debug_panel import DebugPanel
+from social_system import SocialSystem
+from housing_system import HousingSystem
+from seasonal_system import SeasonalSystem
+from education_career_system import EducationCareerSystem
+from health_system import HealthSystem
+from investment_portfolio_manager import InvestmentPortfolioManager
 try:
     import requests  # optional for server sync
 except Exception:  # pragma: no cover
