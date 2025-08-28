@@ -713,6 +713,47 @@ class GameData:
             if not hasattr(self, 'businesses'):
                 self.businesses = []
 
+            # 季節系統
+            self.seasons = ['spring', 'summer', 'autumn', 'winter']
+            self.current_season = 'spring'
+            self.season_duration_days = 90  # 每個季節持續90天
+            self.day_of_season = 0
+            self.weather_types = {
+                'sunny': {'name': '晴天', 'effect': {'happiness': 5, 'energy': 10}},
+                'cloudy': {'name': '陰天', 'effect': {'happiness': -2, 'energy': 5}},
+                'rainy': {'name': '雨天', 'effect': {'happiness': -5, 'energy': -5}},
+                'stormy': {'name': '暴風雨', 'effect': {'happiness': -10, 'energy': -15}},
+                'snowy': {'name': '雪天', 'effect': {'happiness': 5, 'energy': -10}}
+            }
+            self.current_weather = 'sunny'
+            self.weather_duration = 0
+            self.seasonal_activities = {
+                'spring': {
+                    'name': '春天',
+                    'activities': ['賞花', '踏青', '植樹', '春遊'],
+                    'effects': {'happiness': 10, 'health': 5},
+                    'special_events': ['櫻花季', '春雨綿綿']
+                },
+                'summer': {
+                    'name': '夏天',
+                    'activities': ['游泳', '度假', '吃冰', '避暑'],
+                    'effects': {'happiness': 8, 'stamina': -10},
+                    'special_events': ['暑假旅行', '海灘派對']
+                },
+                'autumn': {
+                    'name': '秋天',
+                    'activities': ['賞楓', '秋遊', '採果', '賞月'],
+                    'effects': {'happiness': 12, 'intelligence': 5},
+                    'special_events': ['中秋節', '楓葉季']
+                },
+                'winter': {
+                    'name': '冬天',
+                    'activities': ['賞雪', '溫泉', '滑雪', '圍爐'],
+                    'effects': {'happiness': 6, 'stamina': -5},
+                    'special_events': ['聖誕節', '跨年活動']
+                }
+            }
+
             if hasattr(self, 'achievements_manager'):
                 self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器
         except Exception as e:

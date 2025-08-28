@@ -18,7 +18,7 @@ from reports_charts import ReportsChartsManager
 from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
-from health_system import HealthSystem
+from achievement_gallery import AchievementGallery
 from travel_system import TravelSystem
 try:
     import requests  # optional for server sync
@@ -77,6 +77,10 @@ class BankGame:
         self.education_career_system = EducationCareerSystem(self)
         # 健康系統
         self.health_system = HealthSystem(self)
+        # 季節系統
+        self.seasonal_system = SeasonalSystem(self)
+        # 成就圖鑒
+        self.achievement_gallery = AchievementGallery(self)
         self.create_ui()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
