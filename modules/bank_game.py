@@ -462,6 +462,11 @@ class BankGame:
             self.update_report_ui()
         except Exception:
             pass
+        # 更新屬性報表UI
+        try:
+            self.reports.update_attribute_report_ui()
+        except Exception:
+            pass
         self.update_charts()
         self.update_achievements_list()
         # 活動按鈕狀態/文字更新
@@ -854,6 +859,11 @@ class BankGame:
                     self._daily_activity_rollover()
                 except Exception as e:
                     self.debug_log(f"activity rollover error: {e}")
+                # 更新產業景氣循環
+                try:
+                    self.data.update_economic_cycles()
+                except Exception as e:
+                    self.debug_log(f"economic cycle update error: {e}")
                 self.schedule_ui_update()
             # 破產偵測
             self.check_bankruptcy_and_reborn()

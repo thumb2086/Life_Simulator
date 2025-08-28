@@ -198,8 +198,15 @@ class GameData:
                 'activity_cooldown': 1.2
             }
         }
-        self.current_difficulty = 'normal'
-        # --- Auto-Invest (DCA) 設定 ---
+        # 產業景氣循環系統
+        self.economic_cycles = {
+            '科技業': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.01},
+            '服務業': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.01},
+            '一級產業': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.01},
+            '虛擬貨幣': {'phase': 'normal', 'strength': 1.0, 'duration': 0, 'volatility': 0.03}
+        }
+        self.cycle_transition_prob = 0.1  # 每個階段轉換的機率
+        self.cycle_duration_range = {'boom': (10, 30), 'normal': (20, 50), 'recession': (8, 25)}
         # 股票定投：{code: {amount_cash: float, interval_days: int, next_day: int}}
         self.dca_stocks = {}
         # 基金定投：{fname: {amount_cash: float, interval_days: int, next_day: int}}
@@ -617,9 +624,88 @@ class GameData:
         # 總資產 = 銀行存款 + 現金 + 普通股票市值 + 比特幣市值 - 貸款
         return self.balance + self.cash + stock_value + btc_market_value - self.loan
     
-    def get_difficulty_multiplier(self, key):
-        """獲取當前難度的倍率"""
-        if not hasattr(self, 'difficulty_levels') or not hasattr(self, 'current_difficulty'):
-            return 1.0
-        level = self.difficulty_levels.get(self.current_difficulty, {})
-        return level.get(key, 1.0)
+    def update_economic_cycles(self):
+        """更新所有產業的景氣循環"""
+        import random
+        for industry, cycle in self.economic_cycles.items():
+            cycle['duration'] += 1
+            
+            # 檢查是否需要轉換階段
+            if random.random() < self.cycle_transition_prob:
+                self._transition_cycle(industry)
+            elif cycle['duration'] > self._get_max_duration(cycle['phase']):
+                self._transition_cycle(industry)
+                
+            # 根據當前階段調整經濟指標
+            self._update_cycle_effects(industry)
+    
+    def _transition_cycle(self, industry):
+        """轉換指定產業的景氣階段"""
+        import random
+        cycle = self.economic_cycles[industry]
+        current_phase = cycle['phase']
+        
+        # 階段轉換邏輯
+        if current_phase == 'normal':
+            # 正常時期可以轉向榮景或衰退
+            if random.random() < 0.4:
+                new_phase = 'boom'
+            else:
+                new_phase = 'recession'
+        elif current_phase == 'boom':
+            # 榮景後通常進入正常
+            new_phase = 'normal'
+        else:  # recession
+            # 衰退後通常進入正常
+            new_phase = 'normal'
+            
+        cycle['phase'] = new_phase
+        cycle['duration'] = 0
+        
+        # 設定新階段的經濟指標
+        if new_phase == 'boom':
+            cycle['strength'] = random.uniform(1.2, 1.5)
+            cycle['volatility'] = random.uniform(0.015, 0.025)
+        elif new_phase == 'recession':
+            cycle['strength'] = random.uniform(0.6, 0.8)
+            cycle['volatility'] = random.uniform(0.02, 0.035)
+        else:  # normal
+            cycle['strength'] = 1.0
+            cycle['volatility'] = 0.01
+    
+    def _get_max_duration(self, phase):
+        """獲取指定階段的最大持續時間"""
+        import random
+        min_d, max_d = self.cycle_duration_range[phase]
+        return random.randint(min_d, max_d)
+    
+    def _update_cycle_effects(self, industry):
+        """更新指定產業的景氣效果"""
+        cycle = self.economic_cycles[industry]
+        strength = cycle['strength']
+        
+        # 應用到相關股票
+        for code, stock in self.stocks.items():
+            if stock.get('industry') == industry:
+                # 根據景氣強度調整股價
+                volatility = cycle['volatility']
+                change = random.gauss(strength - 1.0, volatility)
+                stock['price'] *= (1 + change)
+                stock['price'] = max(10, round(stock['price'], 2))
+                stock['history'].append(stock['price'])
+    
+    def get_cycle_info(self, industry):
+        """獲取指定產業的景氣資訊"""
+        if industry not in self.economic_cycles:
+            return None
+        cycle = self.economic_cycles[industry]
+        return {
+            'phase': cycle['phase'],
+            'strength': cycle['strength'],
+            'duration': cycle['duration'],
+            'phase_text': {
+                'boom': '榮景',
+                'normal': '正常',
+                'recession': '衰退'
+            }.get(cycle['phase'], '未知')
+        }
