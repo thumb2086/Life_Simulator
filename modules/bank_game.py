@@ -18,7 +18,7 @@ from reports_charts import ReportsChartsManager
 from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
-from debug_panel import DebugPanel
+from travel_system import TravelSystem
 try:
     import requests  # optional for server sync
 except Exception:  # pragma: no cover
@@ -64,6 +64,12 @@ class BankGame:
         self.dividends = DividendManager(self)
         # 調試面板
         self.debug_panel = DebugPanel(self)
+        # 社交系統
+        self.social_system = SocialSystem(self)
+        # 房屋系統
+        self.housing_system = HousingSystem(self)
+        # 旅行系統
+        self.travel_system = TravelSystem(self)
         self.create_ui()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
@@ -864,17 +870,32 @@ class BankGame:
                     self.debug_log(f"auto features error: {e}")
                 # 每日結束時也更新一次基金 NAV 並記錄歷史
                 self.compute_fund_navs(record_history=True)
-                # 活動上限與冷卻每日輪替
+                # 房屋維護
                 try:
-                    self._daily_activity_rollover()
+                    maintenance_result = self.housing_system.process_maintenance()
+                    if maintenance_result[0] is not None:
+                        success, msg = maintenance_result
+                        if success:
+                            self.log_transaction(msg)
+                        else:
+                            self.log_transaction(f"房屋維護問題：{msg}")
                 except Exception as e:
-                    self.debug_log(f"activity rollover error: {e}")
+                    self.debug_log(f"housing maintenance error: {e}")
                 # 更新產業景氣循環
                 try:
                     self.data.update_economic_cycles()
                 except Exception as e:
                     self.debug_log(f"economic cycle update error: {e}")
-                self.schedule_ui_update()
+                try:
+                    travel_result = self.travel_system.process_trip()
+                    if travel_result[0] is not None:
+                        success, msg = travel_result
+                        if success:
+                            self.log_transaction(msg)
+                        else:
+                            self.log_transaction(f"旅行事件：{msg}")
+                except Exception as e:
+                    self.debug_log(f"travel processing error: {e}")
             # 破產偵測
             self.check_bankruptcy_and_reborn()
         except Exception as e:

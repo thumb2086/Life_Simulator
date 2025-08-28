@@ -216,15 +216,116 @@ class GameData:
         self.daily_positive_events = 0
         self.black_swan_survived = 0
         self.max_single_profit = 0
-        self.perfect_day_count = 0
-        # 股票定投：{code: {amount_cash: float, interval_days: int, next_day: int}}
-        self.dca_stocks = {}
-        # 基金定投：{fname: {amount_cash: float, interval_days: int, next_day: int}}
-        self.dca_funds = {}
-        # --- Entrepreneurship (創業) ---
-        # 簡單的創業結構：[{name, level, revenue_per_day, cost_per_day, next_upgrade_cost}]
-        self.businesses = []
-        # --- Funds/ETF 預設欄位 ---
+        # 社交系統
+        self.social_contacts = {}  # {contact_id: {'name': str, 'relationship': str, 'affinity': int, 'last_interaction': int}}
+        self.social_events = []  # 社交事件歷史
+        self.available_social_activities = {
+            'meet_friend': {'name': '見朋友', 'cost': 30, 'stamina_cost': 5, 'affinity_gain': 5},
+            'family_gathering': {'name': '家庭聚會', 'cost': 50, 'stamina_cost': 8, 'affinity_gain': 8},
+            'business_networking': {'name': '商業社交', 'cost': 80, 'stamina_cost': 10, 'affinity_gain': 6},
+            'date_night': {'name': '約會', 'cost': 100, 'stamina_cost': 12, 'affinity_gain': 12},
+            'party': {'name': '參加派對', 'cost': 60, 'stamina_cost': 15, 'affinity_gain': 10},
+        }
+        self.social_cooldowns = {}  # 社交活動冷卻時間
+        
+        # 房屋系統
+        self.houses_catalog = {
+            'apartment_small': {
+                'name': '小公寓',
+                'price': 50000,
+                'maintenance_cost': 500,
+                'capacity': 2,
+                'description': '適合單身或小家庭的溫馨住所'
+            },
+            'apartment_medium': {
+                'name': '中型公寓',
+                'price': 150000,
+                'maintenance_cost': 1200,
+                'capacity': 4,
+                'description': '舒適的居住環境，適合小家庭'
+            },
+            'house_small': {
+                'name': '小型透天',
+                'price': 300000,
+                'maintenance_cost': 2000,
+                'capacity': 6,
+                'description': '獨立的透天住宅，有小院子'
+            },
+            'house_large': {
+                'name': '大型別墅',
+                'price': 800000,
+                'maintenance_cost': 5000,
+                'capacity': 10,
+                'description': '豪華別墅，寬敞舒適的生活空間'
+            }
+        }
+        self.current_house = None  # 當前擁有的房屋
+        self.house_furniture = {}  # 已購買的家具 {furniture_id: quantity}
+        self.furniture_catalog = {
+            'bed_basic': {'name': '基礎床鋪', 'price': 2000, 'comfort': 5, 'category': 'bedroom'},
+            'bed_luxury': {'name': '豪華床鋪', 'price': 8000, 'comfort': 15, 'category': 'bedroom'},
+            'sofa_basic': {'name': '基礎沙發', 'price': 3000, 'comfort': 8, 'category': 'living_room'},
+            'sofa_luxury': {'name': '豪華沙發', 'price': 12000, 'comfort': 20, 'category': 'living_room'},
+            'table_dining': {'name': '餐桌組', 'price': 5000, 'comfort': 10, 'category': 'dining'},
+            'kitchen_appliance': {'name': '廚房電器', 'price': 10000, 'comfort': 12, 'category': 'kitchen'},
+            'entertainment_system': {'name': '娛樂系統', 'price': 15000, 'comfort': 18, 'category': 'living_room'},
+            'home_office': {'name': '家庭辦公室', 'price': 8000, 'comfort': 14, 'category': 'office'}
+        }
+        self.house_comfort_level = 0  # 房屋舒適度
+        self.house_maintenance_due = 0  # 下次維護費用到期日
+        
+        # 旅行系統
+        self.destinations_catalog = {
+            'tokyo': {
+                'name': '東京',
+                'cost': 30000,
+                'duration': 7,
+                'experience_gain': 50,
+                'culture_bonus': 15,
+                'description': '現代都市，科技與傳統並存',
+                'special_events': ['富士山之旅', '淺草寺參拜', '銀座購物']
+            },
+            'paris': {
+                'name': '巴黎',
+                'cost': 45000,
+                'duration': 10,
+                'experience_gain': 70,
+                'culture_bonus': 20,
+                'description': '浪漫之都，藝術與時尚的殿堂',
+                'special_events': ['艾菲爾鐵塔', '盧浮宮參觀', '塞納河遊船']
+            },
+            'bali': {
+                'name': '峇里島',
+                'cost': 25000,
+                'duration': 14,
+                'experience_gain': 60,
+                'culture_bonus': 25,
+                'description': '熱帶度假勝地，寧靜與冒險並存',
+                'special_events': ['海灘度假', '火山登山', '傳統舞蹈表演']
+            },
+            'new_york': {
+                'name': '紐約',
+                'cost': 50000,
+                'duration': 12,
+                'experience_gain': 80,
+                'culture_bonus': 18,
+                'description': '大蘋果，夢想的起點',
+                'special_events': ['時代廣場', '中央公園', '博物館巡禮']
+            },
+            'kyoto': {
+                'name': '京都',
+                'cost': 28000,
+                'duration': 8,
+                'experience_gain': 55,
+                'culture_bonus': 30,
+                'description': '日本古都，傳統文化寶庫',
+                'special_events': ['金閣寺', '嵐山賞楓', '茶道體驗']
+            }
+        }
+        self.travel_history = []  # 旅行記錄
+        self.current_trip = None  # 當前旅行狀態
+        self.culture_points = 0  # 文化積分
+        self.travel_cooldown = 0  # 旅行冷卻時間
         # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
         self.funds_catalog = {
             '台灣科技ETF': {
