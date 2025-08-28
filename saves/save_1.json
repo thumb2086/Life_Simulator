@@ -1,7 +1,7 @@
 {
   "reborn_count": 0,
   "balance": 0,
-  "cash": 2564.000580432906,
+  "cash": 2688.560580432906,
   "loan": 0,
   "deposit_interest_rate": 0.05000000000000001,
   "loan_interest_rate": 0.021000000000000005,
@@ -297,7 +297,7 @@
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 58960,
+      "price": 54067,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -325,13 +325,15 @@
         73577.9,
         92708.15,
         55232,
-        58960
+        58960,
+        58018,
+        54067
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 14,
+      "next_dividend_day": 16,
       "drip": false
     }
   },
@@ -897,19 +899,27 @@
     {
       "timestamp": "2025-08-28 20:37:32",
       "message": "薪資入帳：毛薪 $65.34 (基礎 $60.00 x 公司1.10 x 學歷1.10 x 生產力0.90)，扣稅 $3.27，實領 $62.07"
+    },
+    {
+      "timestamp": "2025-08-28 20:48:55",
+      "message": "薪資入帳：毛薪 $65.34 (基礎 $60.00 x 公司1.10 x 學歷1.10 x 生產力0.90)，扣稅 $3.27，實領 $62.07"
+    },
+    {
+      "timestamp": "2025-08-28 20:52:07",
+      "message": "薪資入帳：毛薪 $65.78 (基礎 $60.00 x 公司1.10 x 學歷1.10 x 生產力0.91)，扣稅 $3.29，實領 $62.49"
     }
   ],
   "last_slot_win": 0,
   "achievements_unlocked": [],
-  "days": 14,
+  "days": 16,
   "happiness": 50,
   "stamina": 50,
   "intelligence": 50,
   "diligence": 50,
   "charisma": 50,
-  "experience": 1.0,
-  "luck_today": 50.0,
-  "last_luck_day": 14,
+  "experience": 3.0,
+  "luck_today": 56.0,
+  "last_luck_day": 16,
   "activity_rules": {
     "study": {
       "daily_max": 3,
@@ -1056,6 +1066,20 @@
       "gross": 65.34,
       "tax": 3.27,
       "net": 62.07
+    },
+    {
+      "day": 15,
+      "type": "salary",
+      "gross": 65.34,
+      "tax": 3.27,
+      "net": 62.07
+    },
+    {
+      "day": 16,
+      "type": "salary",
+      "gross": 65.78,
+      "tax": 3.29,
+      "net": 62.49
     }
   ],
   "education_level": "大學",
@@ -1424,7 +1448,7 @@
     "科技業": {
       "phase": "normal",
       "strength": 1.0,
-      "duration": 1,
+      "duration": 3,
       "volatility": 0.01
     },
     "服務業": {
@@ -1829,6 +1853,8 @@
         72.0314,
         33.4096,
         14.767,
+        13.3643,
+        13.3643,
         13.3643
       ],
       "base_prices": {
@@ -1855,6 +1881,8 @@
         32.2846,
         19.0999,
         7.3588,
+        7.3588,
+        7.3588,
         7.3588
       ],
       "base_prices": {
@@ -1880,6 +1908,8 @@
         21.2307,
         20.5503,
         13.5799,
+        6.4361,
+        6.4361,
         6.4361,
         6.4361
       ],

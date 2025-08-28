@@ -621,6 +621,12 @@ class DiceGamePayload(BaseModel):
     prediction: Optional[Any] = None
 
 
+class TriviaAnswerPayload(BaseModel):
+    username: str
+    question_id: str
+    answer: str
+
+
 # --- 統一遊戲資料管理 API ---
 
 

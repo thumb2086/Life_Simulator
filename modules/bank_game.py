@@ -952,8 +952,13 @@ class BankGame:
         try:
             if hasattr(self, 'game_day_label') and self.game_day_label is not None:
                 days = int(getattr(self.data, 'days', 0))
-                month = days // MONTH_DAYS + 1
-                day_in_month = days % MONTH_DAYS + 1
+                if days > 0:
+                    # 正確的月份和日期計算
+                    month = (days - 1) // MONTH_DAYS + 1
+                    day_in_month = (days - 1) % MONTH_DAYS + 1
+                else:
+                    month = 1
+                    day_in_month = 1
                 self.game_day_label.config(text=f"遊戲日數：第 {days} 天（第 {month} 月 第 {day_in_month} 天）")
         except Exception:
             pass
