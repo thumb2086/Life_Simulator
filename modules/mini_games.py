@@ -8,6 +8,7 @@ from enum import Enum
 
 from game_data import GameData
 from unified_data_manager import UnifiedDataManager
+from advanced_casino import AdvancedCasinoManager
 
 
 class MiniGameType(Enum):
@@ -102,6 +103,9 @@ class MiniGamesManager:
         self.active_games: Dict[str, CasinoGameState] = {}
         self.daily_challenges: Dict[str, Dict[str, Any]] = {}
         self.trivia_questions: List[TriviaQuestion] = []
+
+        # 初始化進階賭場管理器
+        self.advanced_casino = AdvancedCasinoManager(data_manager, db_path)
 
         # 初始化資料庫結構
         self._init_mini_games_db_schema()
@@ -363,9 +367,134 @@ class MiniGamesManager:
             )
         ]
 
-    # ===== 賭場遊戲 =====
+    # ===== 進階賭場遊戲 =====
 
-    def play_slots(self, username: str, bet_amount: float) -> MiniGameResult:
+    def play_advanced_casino(self, username: str, game_type: str, bet_amount: float, **kwargs) -> Dict[str, Any]:
+        """
+        玩進階賭場遊戲
+
+        Args:
+            username: 玩家用戶名
+            game_type: 遊戲類型 (roulette, baccarat, dice)
+            bet_amount: 下注金額
+            **kwargs: 遊戲特定參數
+
+        Returns:
+            遊戲結果
+        """
+        try:
+            if game_type == "roulette":
+                bet_type = kwargs.get('bet_type')
+                bet_value = kwargs.get('bet_value')
+                result = self.advanced_casino.play_roulette(username, bet_amount, bet_type, bet_value)
+            elif game_type == "baccarat":
+                bet_type = kwargs.get('bet_type')
+                result = self.advanced_casino.play_baccarat(username, bet_amount, bet_type)
+            elif game_type == "dice":
+                dice_game_type = kwargs.get('dice_game_type')
+                prediction = kwargs.get('prediction')
+                result = self.advanced_casino.play_dice_game(username, bet_amount, dice_game_type, prediction)
+            else:
+                return {"error": "不支援的遊戲類型"}
+
+            return result
+
+        except Exception as e:
+            logging.error(f"進階賭場遊戲失敗: {e}")
+            return {"error": str(e)}
+
+    def get_casino_info(self) -> Dict[str, Any]:
+        """獲取賭場資訊"""
+        return {
+            "jackpots": self.advanced_casino.get_progressive_jackpots(),
+            "games_available": ["slots", "blackjack", "roulette", "baccarat", "dice"],
+            "vip_levels": ["bronze", "silver", "gold", "platinum", "diamond"]
+        }
+
+    def get_player_vip_status(self, username: str) -> Dict[str, Any]:
+        """獲取玩家VIP狀態"""
+        vip_level = self.advanced_casino.get_vip_level(username)
+        perks = self.advanced_casino.get_vip_perks(vip_level)
+        stats = self.advanced_casino.get_casino_stats(username)
+
+        return {
+            "vip_level": vip_level.value,
+            "perks": perks,
+            "stats": stats
+        }
+
+    # ===== 增強版拉霸遊戲 =====
+
+    def play_enhanced_slots(self, username: str, bet_amount: float) -> MiniGameResult:
+        """
+        玩增強版拉霸遊戲（支援累積獎池）
+
+        Args:
+            username: 玩家用戶名
+            bet_amount: 下注金額
+
+        Returns:
+            遊戲結果
+        """
+        game_id = f"enhanced_slots_{int(datetime.now().timestamp())}_{username}"
+
+        # 增強版拉霸邏輯
+        symbols = ['🍒', '🍋', '🍊', '⭐', '💎', '7️⃣', '🎰', '💰']
+        reels = [random.choice(symbols) for _ in range(5)]  # 5個滾輪
+
+        # 計算中獎
+        unique_symbols = set(reels)
+        max_count = max(reels.count(symbol) for symbol in unique_symbols)
+
+        # 貢獻獎池
+        self.advanced_casino.contribute_to_jackpot(bet_amount, "slots")
+
+        # 計算獎金
+        if max_count >= 5:  # 五個相同
+            if reels[0] == '7️⃣':
+                # 觸發大獎池
+                jackpot_prize = self.advanced_casino.trigger_jackpot("mega_jackpot", username)
+                winnings = jackpot_prize
+                multiplier = jackpot_prize / bet_amount
+            else:
+                multiplier = 100.0  # 普通大獎
+                winnings = bet_amount * multiplier
+        elif max_count >= 4:  # 四個相同
+            multiplier = 20.0
+            winnings = bet_amount * multiplier
+        elif max_count >= 3:  # 三個相同
+            if reels.count(reels[0]) >= 3:
+                multiplier = 10.0
+            else:
+                multiplier = 5.0
+            winnings = bet_amount * multiplier
+        elif max_count >= 2:  # 兩個相同
+            multiplier = 2.0
+            winnings = bet_amount * multiplier
+        else:
+            winnings = 0
+            multiplier = 0
+
+        # 儲存遊戲結果
+        result = MiniGameResult(
+            game_id=game_id,
+            player_username=username,
+            game_type=MiniGameType.CASINO,
+            score=int(winnings // 10),
+            winnings=winnings,
+            experience_gained=int(winnings // 100),
+            completed_at=datetime.now(),
+            metadata={
+                'game': 'enhanced_slots',
+                'reels': reels,
+                'bet_amount': bet_amount,
+                'multiplier': multiplier,
+                'jackpot_contribution': bet_amount * 0.01
+            }
+        )
+
+        self._save_game_result(result)
+        return result
         """
         玩拉霸遊戲
 

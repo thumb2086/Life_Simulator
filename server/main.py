@@ -601,10 +601,24 @@ class BlackjackActionPayload(BaseModel):
     action: str  # hit, stand, double, surrender
 
 
-class TriviaAnswerPayload(BaseModel):
+class RouletteBetPayload(BaseModel):
     username: str
-    question_id: str
-    answer: int  # 0-3
+    bet_amount: float
+    bet_type: str  # straight_up, split, street, corner, etc.
+    bet_value: Optional[Any] = None
+
+
+class BaccaratBetPayload(BaseModel):
+    username: str
+    bet_amount: float
+    bet_type: str  # player, banker, tie
+
+
+class DiceGamePayload(BaseModel):
+    username: str
+    bet_amount: float
+    game_type: str  # seven_eleven, craps, over_under
+    prediction: Optional[Any] = None
 
 
 # --- 統一遊戲資料管理 API ---
@@ -2291,6 +2305,8 @@ def play_casino_game(payload: CasinoGamePayload):
     try:
         if payload.game_type == "slots":
             result = mini_games_manager.play_slots(payload.username, payload.bet_amount)
+        elif payload.game_type == "enhanced_slots":
+            result = mini_games_manager.play_enhanced_slots(payload.username, payload.bet_amount)
         else:
             raise HTTPException(status_code=400, detail="不支援的遊戲類型")
 
@@ -2311,8 +2327,225 @@ def play_casino_game(payload: CasinoGamePayload):
         raise HTTPException(status_code=500, detail=f"遊戲執行失敗: {str(e)}")
 
 
-@app.post("/minigames/blackjack/action")
-def blackjack_action(payload: BlackjackActionPayload):
+# ===== 進階賭場遊戲 API =====
+
+@app.post("/casino/roulette/play")
+def play_roulette(payload: RouletteBetPayload):
+    """
+    玩俄羅斯輪盤
+    """
+    try:
+        from mini_games import RouletteBetType
+
+        # 轉換賭注類型
+        bet_type_map = {
+            'straight_up': RouletteBetType.STRAIGHT_UP,
+            'split': RouletteBetType.SPLIT,
+            'street': RouletteBetType.STREET,
+            'corner': RouletteBetType.CORNER,
+            'six_line': RouletteBetType.SIX_LINE,
+            'column': RouletteBetType.COLUMN,
+            'dozen': RouletteBetType.DOZEN,
+            'red': RouletteBetType.RED,
+            'black': RouletteBetType.BLACK,
+            'even': RouletteBetType.EVEN,
+            'odd': RouletteBetType.ODD,
+            'low': RouletteBetType.LOW,
+            'high': RouletteBetType.HIGH
+        }
+
+        bet_type = bet_type_map.get(payload.bet_type)
+        if not bet_type:
+            raise HTTPException(status_code=400, detail="無效的賭注類型")
+
+        result = mini_games_manager.play_advanced_casino(
+            payload.username,
+            "roulette",
+            payload.bet_amount,
+            bet_type=bet_type,
+            bet_value=payload.bet_value
+        )
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        return {"ok": True, "game_result": result}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"輪盤遊戲失敗: {str(e)}")
+
+
+@app.post("/casino/baccarat/play")
+def play_baccarat(payload: BaccaratBetPayload):
+    """
+    玩百家樂
+    """
+    try:
+        if payload.bet_type not in ['player', 'banker', 'tie']:
+            raise HTTPException(status_code=400, detail="無效的賭注類型")
+
+        result = mini_games_manager.play_advanced_casino(
+            payload.username,
+            "baccarat",
+            payload.bet_amount,
+            bet_type=payload.bet_type
+        )
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        return {"ok": True, "game_result": result}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"百家樂遊戲失敗: {str(e)}")
+
+
+@app.post("/casino/dice/play")
+def play_dice_game(payload: DiceGamePayload):
+    """
+    玩骰子遊戲
+    """
+    try:
+        if payload.game_type not in ['seven_eleven', 'craps', 'over_under']:
+            raise HTTPException(status_code=400, detail="無效的遊戲類型")
+
+        result = mini_games_manager.play_advanced_casino(
+            payload.username,
+            "dice",
+            payload.bet_amount,
+            dice_game_type=payload.game_type,
+            prediction=payload.prediction
+        )
+
+        if "error" in result:
+            raise HTTPException(status_code=400, detail=result["error"])
+
+        return {"ok": True, "game_result": result}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"骰子遊戲失敗: {str(e)}")
+
+
+@app.get("/casino/info")
+def get_casino_info():
+    """
+    獲取賭場資訊
+    """
+    try:
+        info = mini_games_manager.get_casino_info()
+        return {"ok": True, "casino_info": info}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取賭場資訊失敗: {str(e)}")
+
+
+@app.get("/casino/vip/{username}")
+def get_player_vip_status(username: str):
+    """
+    獲取玩家VIP狀態
+    """
+    try:
+        vip_status = mini_games_manager.get_player_vip_status(username)
+        return {"ok": True, "vip_status": vip_status}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取VIP狀態失敗: {str(e)}")
+
+
+@app.get("/casino/jackpots")
+def get_progressive_jackpots():
+    """
+    獲取累積獎池資訊
+    """
+    try:
+        jackpots = mini_games_manager.advanced_casino.get_progressive_jackpots()
+        return {"ok": True, "jackpots": jackpots}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取獎池資訊失敗: {str(e)}")
+
+
+@app.get("/casino/leaderboard")
+def get_casino_leaderboard(limit: int = Query(default=50, ge=1, le=200)):
+    """
+    獲取賭場排行榜
+    """
+    try:
+        from mini_games import MiniGameType
+
+        leaderboard = mini_games_manager.get_game_leaderboard(MiniGameType.CASINO, limit)
+        return {"ok": True, "leaderboard": leaderboard}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取排行榜失敗: {str(e)}")
+
+
+@app.get("/casino/games")
+def get_available_casino_games():
+    """
+    獲取可用的賭場遊戲列表
+    """
+    try:
+        games = {
+            "slots": {
+                "name": "拉霸機",
+                "description": "經典三滾輪拉霸遊戲",
+                "min_bet": 10,
+                "max_bet": 1000
+            },
+            "enhanced_slots": {
+                "name": "豪華拉霸機",
+                "description": "五滾輪豪華拉霸，支援累積獎池",
+                "min_bet": 50,
+                "max_bet": 5000
+            },
+            "blackjack": {
+                "name": "21點",
+                "description": "經典21點遊戲",
+                "min_bet": 25,
+                "max_bet": 2500
+            },
+            "roulette": {
+                "name": "俄羅斯輪盤",
+                "description": "歐洲式輪盤遊戲",
+                "min_bet": 10,
+                "max_bet": 1000
+            },
+            "baccarat": {
+                "name": "百家樂",
+                "description": "經典百家樂遊戲",
+                "min_bet": 100,
+                "max_bet": 10000
+            },
+            "dice": {
+                "name": "骰子遊戲",
+                "description": "多種骰子遊戲選擇",
+                "min_bet": 5,
+                "max_bet": 500
+            }
+        }
+
+        return {"ok": True, "games": games}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取遊戲列表失敗: {str(e)}")
+
+
+@app.get("/casino/stats/{username}")
+def get_player_casino_stats(username: str):
+    """
+    獲取玩家賭場統計
+    """
+    try:
+        stats = mini_games_manager.advanced_casino.get_casino_stats(username)
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取統計失敗: {str(e)}")
+
+
+# --- 迷你遊戲和副業管理 API ---
     """
     21點遊戲動作
     """
