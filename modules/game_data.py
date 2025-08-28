@@ -93,21 +93,75 @@ class GameData:
         }
         # 收入歷史：[{day, type:'salary', gross, tax, net}]
         self.income_history = []
-        # 學歷系統：等級、倍率、升級花費
+        # 教育與職業進階系統
         self.education_level = '高中'
-        self.education_levels = ['高中', '大學', '碩士', '博士']
+        self.education_levels = ['高中', '大學', '碩士', '博士', '博士後']
         self.education_multipliers = {
             '高中': 1.00,
             '大學': 1.10,
             '碩士': 1.25,
             '博士': 1.40,
+            '博士後': 1.60,
         }
-        # 升級至該目標學歷的費用
         self.education_upgrade_cost = {
-            '大學': 1000.0,
-            '碩士': 3000.0,
-            '博士': 8000.0,
+            '大學': 10000.0,
+            '碩士': 30000.0,
+            '博士': 80000.0,
+            '博士後': 150000.0,
         }
+        self.education_study_progress = {}  # {education_level: progress_days}
+        
+        # 專業技能系統
+        self.professional_skills = {
+            '技術能力': {'level': 1, 'experience': 0, 'max_level': 10},
+            '溝通能力': {'level': 1, 'experience': 0, 'max_level': 10},
+            '領導能力': {'level': 1, 'experience': 0, 'max_level': 10},
+            '創意思考': {'level': 1, 'experience': 0, 'max_level': 10},
+            '分析能力': {'level': 1, 'experience': 0, 'max_level': 10},
+            '團隊合作': {'level': 1, 'experience': 0, 'max_level': 10},
+            '問題解決': {'level': 1, 'experience': 0, 'max_level': 10},
+            '時間管理': {'level': 1, 'experience': 0, 'max_level': 10}
+        }
+        
+        # 職業發展系統
+        self.career_paths = {
+            '科技': {
+                'levels': ['實習工程師', '初級工程師', '資深工程師', '架構師', '技術總監'],
+                'requirements': {
+                    '實習工程師': {'education': '大學', 'skills': {'技術能力': 2}},
+                    '初級工程師': {'education': '大學', 'skills': {'技術能力': 4}, 'experience': 2},
+                    '資深工程師': {'education': '碩士', 'skills': {'技術能力': 6}, 'experience': 5},
+                    '架構師': {'education': '博士', 'skills': {'技術能力': 8, '領導能力': 5}, 'experience': 8},
+                    '技術總監': {'education': '博士', 'skills': {'技術能力': 10, '領導能力': 8}, 'experience': 12}
+                }
+            },
+            '管理': {
+                'levels': ['助理', '專員', '經理', '總經理', '執行長'],
+                'requirements': {
+                    '助理': {'education': '大學', 'skills': {'溝通能力': 2}},
+                    '專員': {'education': '大學', 'skills': {'溝通能力': 4, '分析能力': 3}, 'experience': 2},
+                    '經理': {'education': '碩士', 'skills': {'領導能力': 5, '溝通能力': 6}, 'experience': 5},
+                    '總經理': {'education': '博士', 'skills': {'領導能力': 8, '戰略思維': 7}, 'experience': 10},
+                    '執行長': {'education': '博士後', 'skills': {'領導能力': 10, '戰略思維': 9}, 'experience': 15}
+                }
+            },
+            '創意': {
+                'levels': ['助理設計師', '初級設計師', '資深設計師', '創意總監', '藝術總監'],
+                'requirements': {
+                    '助理設計師': {'education': '大學', 'skills': {'創意思考': 3}},
+                    '初級設計師': {'education': '大學', 'skills': {'創意思考': 5, '技術能力': 3}, 'experience': 2},
+                    '資深設計師': {'education': '碩士', 'skills': {'創意思考': 7, '溝通能力': 5}, 'experience': 6},
+                    '創意總監': {'education': '博士', 'skills': {'創意思考': 9, '領導能力': 6}, 'experience': 10},
+                    '藝術總監': {'education': '博士後', 'skills': {'創意思考': 10, '領導能力': 8}, 'experience': 15}
+                }
+            }
+        }
+        
+        # 當前職業狀態
+        self.current_career_path = None
+        self.career_level = 0
+        self.career_experience = 0
+        self.career_history = []  # 職業變更記錄
         # 職業目錄（可於 UI 選擇），金額單位：遊戲幣/日
         self.jobs_catalog = {
             '實習生': {'base_salary_per_day': 50.0, 'tax_rate': 0.05},
@@ -324,8 +378,99 @@ class GameData:
         }
         self.travel_history = []  # 旅行記錄
         self.current_trip = None  # 當前旅行狀態
-        self.culture_points = 0  # 文化積分
-        self.travel_cooldown = 0  # 旅行冷卻時間
+        # 健康系統
+        self.health_status = 100  # 整體健康狀態 (0-100)
+        self.mental_health = 100  # 心理健康狀態 (0-100)
+        self.immune_system = 100  # 免疫系統強度 (0-100)
+
+        # 疾病系統
+        self.current_illnesses = []  # 當前疾病列表
+        self.past_illnesses = []  # 過往疾病記錄
+        self.illness_resistance = {}  # 對各種疾病的抗性
+
+        # 醫療保健
+        self.medical_records = []  # 醫療記錄
+        self.health_insurance = None  # 健康保險狀態
+        self.medical_costs_paid = 0  # 已支付醫療費用
+
+        # 健康指標
+        self.daily_exercise = 0  # 每日運動量
+        self.sleep_quality = 100  # 睡眠品質
+        self.diet_quality = 100  # 飲食品質
+        self.stress_level = 0  # 壓力水平
+
+        # 健康活動
+        self.health_activities = {
+            '輕度運動': {'stamina_cost': 10, 'health_gain': 5, 'duration': 30},
+            '中度運動': {'stamina_cost': 20, 'health_gain': 10, 'duration': 60},
+            '劇烈運動': {'stamina_cost': 35, 'health_gain': 15, 'duration': 90},
+            '冥想放鬆': {'stamina_cost': 5, 'mental_gain': 10, 'duration': 20},
+            '健康檢查': {'cost': 200, 'health_boost': 20, 'duration': 60},
+            '營養補充': {'cost': 50, 'health_gain': 8, 'duration': 10},
+            '按摩治療': {'cost': 150, 'stress_reduction': 20, 'duration': 45},
+            '心理諮詢': {'cost': 300, 'mental_gain': 25, 'duration': 60}
+        }
+
+        # 疾病類型
+        self.disease_types = {
+            '感冒': {
+                'severity': 'mild',
+                'duration_days': 7,
+                'health_penalty': 15,
+                'stamina_penalty': 20,
+                'contagious': True,
+                'treatment_cost': 100
+            },
+            '流感': {
+                'severity': 'moderate',
+                'duration_days': 14,
+                'health_penalty': 25,
+                'stamina_penalty': 35,
+                'contagious': True,
+                'treatment_cost': 300
+            },
+            '肺炎': {
+                'severity': 'severe',
+                'duration_days': 21,
+                'health_penalty': 40,
+                'stamina_penalty': 50,
+                'contagious': False,
+                'treatment_cost': 800
+            },
+            '胃腸炎': {
+                'severity': 'moderate',
+                'duration_days': 5,
+                'health_penalty': 20,
+                'stamina_penalty': 30,
+                'contagious': True,
+                'treatment_cost': 200
+            },
+            '憂鬱症': {
+                'severity': 'moderate',
+                'duration_days': 30,
+                'mental_penalty': 30,
+                'happiness_penalty': 25,
+                'contagious': False,
+                'treatment_cost': 500
+            },
+            '焦慮症': {
+                'severity': 'mild',
+                'duration_days': 20,
+                'mental_penalty': 20,
+                'happiness_penalty': 15,
+                'contagious': False,
+                'treatment_cost': 350
+            },
+            '慢性疲勞': {
+                'severity': 'moderate',
+                'duration_days': 45,
+                'stamina_penalty': 25,
+                'health_penalty': 10,
+                'contagious': False,
+                'treatment_cost': 600
+        }
+
+        }
         # 可供交易的基金目錄：每檔包含股票權重（以股票代碼為鍵，權重總和為1），與手續費率（單邊）
         self.funds_catalog = {
             '台灣科技ETF': {
@@ -339,7 +484,7 @@ class GameData:
             '一級產業ETF': {
                 'weights': {'MINING': 0.34, 'FARM': 0.33, 'FOREST': 0.33},
                 'fee_rate': 0.002
-            },
+            }
         }
         # 持有的基金資訊：每檔包含 nav、units（持有單位）、total_cost、history（nav 歷史）、base_prices（初始化時的股票基準價）
         self.funds = {}
