@@ -1,7 +1,7 @@
 {
   "reborn_count": 0,
   "balance": 0,
-  "cash": 807.75,
+  "cash": 936.19,
   "loan": 0,
   "deposit_interest_rate": 0.01,
   "loan_interest_rate": 0.005,
@@ -773,7 +773,7 @@
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 1092953,
+      "price": 1059949,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -789,13 +789,16 @@
         1238594.77,
         1236759.91,
         1234776.26,
-        1092953
+        1092953,
+        1095918,
+        1067426,
+        1059949
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 11
+      "next_dividend_day": 14
     }
   },
   "btc_balance": 0.0,
@@ -1088,6 +1091,18 @@
     {
       "timestamp": "2025-08-28 20:22:19",
       "message": "薪資入帳：毛薪 $45.00 (基礎 $50.00 x 公司1.00 x 學歷1.00 x 生產力0.90)，扣稅 $2.25，實領 $42.75"
+    },
+    {
+      "timestamp": "2025-08-28 20:25:21",
+      "message": "薪資入帳：毛薪 $45.00 (基礎 $50.00 x 公司1.00 x 學歷1.00 x 生產力0.90)，扣稅 $2.25，實領 $42.75"
+    },
+    {
+      "timestamp": "2025-08-28 20:28:23",
+      "message": "薪資入帳：毛薪 $45.00 (基礎 $50.00 x 公司1.00 x 學歷1.00 x 生產力0.90)，扣稅 $2.25，實領 $42.75"
+    },
+    {
+      "timestamp": "2025-08-28 20:31:25",
+      "message": "薪資入帳：毛薪 $45.20 (基礎 $50.00 x 公司1.00 x 學歷1.00 x 生產力0.90)，扣稅 $2.26，實領 $42.94"
     }
   ],
   "last_slot_win": 0,
@@ -1096,15 +1111,15 @@
     "rich",
     "payoff_loan"
   ],
-  "days": 11,
+  "days": 14,
   "happiness": 50,
   "stamina": 50,
   "intelligence": 50,
   "diligence": 50,
   "charisma": 50,
-  "experience": 1.0,
-  "luck_today": 44.0,
-  "last_luck_day": 11,
+  "experience": 4.0,
+  "luck_today": 54.0,
+  "last_luck_day": 14,
   "activity_rules": {
     "study": {
       "daily_max": 3,
@@ -1167,6 +1182,27 @@
       "gross": 45.0,
       "tax": 2.25,
       "net": 42.75
+    },
+    {
+      "day": 12,
+      "type": "salary",
+      "gross": 45.0,
+      "tax": 2.25,
+      "net": 42.75
+    },
+    {
+      "day": 13,
+      "type": "salary",
+      "gross": 45.0,
+      "tax": 2.25,
+      "net": 42.75
+    },
+    {
+      "day": 14,
+      "type": "salary",
+      "gross": 45.2,
+      "tax": 2.26,
+      "net": 42.94
     }
   ],
   "education_level": "高中",
@@ -1561,7 +1597,7 @@
     "科技業": {
       "phase": "normal",
       "strength": 1.0,
-      "duration": 1,
+      "duration": 4,
       "volatility": 0.01
     },
     "服務業": {
@@ -1954,6 +1990,9 @@
       "total_cost": 0.0,
       "history": [
         100.0,
+        79.8775,
+        79.8775,
+        79.8775,
         79.8775
       ],
       "base_prices": {
@@ -1968,6 +2007,9 @@
       "total_cost": 0.0,
       "history": [
         100.0,
+        71.5384,
+        71.5384,
+        71.5384,
         71.5384
       ],
       "base_prices": {
@@ -1982,6 +2024,9 @@
       "total_cost": 0.0,
       "history": [
         100.0,
+        114.6261,
+        114.6261,
+        114.6261,
         114.6261
       ],
       "base_prices": {
