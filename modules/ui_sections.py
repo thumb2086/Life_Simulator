@@ -343,6 +343,17 @@ def create_main_tabs(root, game):
     ttk.Combobox(company_row, textvariable=game.company_select_var, values=comp_names, font=FONT, state='readonly', width=16).pack(side=tk.LEFT, padx=6)
     ttk.Button(company_row, text="加入公司", command=lambda: game.select_company(game.company_select_var.get()), width=10).pack(side=tk.LEFT, padx=6)
     ttk.Button(company_row, text="進修升學", command=game.study_upgrade, width=10).pack(side=tk.LEFT, padx=12)
+    # 行為/活動區塊
+    act_frame = ttk.LabelFrame(life_tab, text="行為 / 活動（消耗體力/金錢，提升屬性）", padding="10")
+    act_frame.pack(fill=tk.X, pady=6, padx=10)
+    row_act1 = ttk.Frame(act_frame)
+    row_act1.pack(fill=tk.X, pady=4)
+    ttk.Button(row_act1, text="讀書（$50、-10體力）", width=20, command=lambda: game.do_study_action()).pack(side=tk.LEFT, padx=6)
+    ttk.Button(row_act1, text="健身（$30、-15體力）", width=20, command=lambda: game.do_workout_action()).pack(side=tk.LEFT, padx=6)
+    row_act2 = ttk.Frame(act_frame)
+    row_act2.pack(fill=tk.X, pady=4)
+    ttk.Button(row_act2, text="社交（$40、-10體力）", width=20, command=lambda: game.do_social_action()).pack(side=tk.LEFT, padx=6)
+    ttk.Button(row_act2, text="冥想（免費、-8體力）", width=20, command=lambda: game.do_meditate_action()).pack(side=tk.LEFT, padx=6)
     # 支出區塊
     expense_frame = ttk.LabelFrame(life_tab, text="支出", padding="10")
     expense_frame.pack(fill=tk.BOTH, pady=10, padx=10)
@@ -376,6 +387,32 @@ def create_main_tabs(root, game):
     # 支出總覽
     game.expense_summary_label = ttk.Label(expense_frame, text="預估支出：每日 $0.00｜每週 $0.00｜每月 $0.00", font=FONT, foreground="#888")
     game.expense_summary_label.pack(fill=tk.X, padx=6)
+    # --- 屬性分頁 ---
+    attr_tab = ttk.Frame(tab_control)
+    tab_control.add(attr_tab, text="🧠 屬性")
+    attr_frame = ttk.LabelFrame(attr_tab, text="個人屬性", padding="10")
+    attr_frame.pack(fill=tk.X, pady=10, padx=10)
+    # 兩欄顯示
+    col_left = ttk.Frame(attr_frame)
+    col_right = ttk.Frame(attr_frame)
+    col_left.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    col_right.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    # 建立並綁定屬性標籤
+    def _mk_attr_row(parent, label_text):
+        row = ttk.Frame(parent)
+        row.pack(fill=tk.X, pady=2)
+        ttk.Label(row, text=label_text + "：", font=FONT).pack(side=tk.LEFT, padx=6)
+        val_lbl = ttk.Label(row, text="-", font=FONT)
+        val_lbl.pack(side=tk.LEFT)
+        return val_lbl
+    game.attr_labels = {}
+    game.attr_labels['happiness'] = _mk_attr_row(col_left, '快樂')
+    game.attr_labels['stamina'] = _mk_attr_row(col_left, '體力')
+    game.attr_labels['intelligence'] = _mk_attr_row(col_left, '智力')
+    game.attr_labels['diligence'] = _mk_attr_row(col_right, '勤奮')
+    game.attr_labels['charisma'] = _mk_attr_row(col_right, '魅力')
+    game.attr_labels['experience'] = _mk_attr_row(col_right, '經驗')
+    game.attr_labels['luck_today'] = _mk_attr_row(attr_frame, '今日運氣')
     # --- 股票圖表分頁（多圖表+買賣操作） ---
     chart_tab = ttk.Frame(tab_control)
     tab_control.add(chart_tab, text="📈 股票")

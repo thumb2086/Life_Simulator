@@ -47,6 +47,14 @@ class GameData:
         # 基礎屬性（0~100）：快樂與體力
         self.happiness = 50
         self.stamina = 50
+        # 擴充屬性（0~100）：智力、勤奮、魅力、經驗（0~1000 可擴展，但先以 0~100 顯示）、今日運氣
+        self.intelligence = 50
+        self.diligence = 50
+        self.charisma = 50
+        self.experience = 0
+        # 今日運氣（0~100）與最後生成日，用於每日重擲
+        self.luck_today = 50
+        self.last_luck_day = -1
         if is_reborn:
             self.reborn_count += 1
         # --- Work Mode (上班模式) 預設欄位 ---
@@ -209,6 +217,19 @@ class GameData:
                 self.happiness = 50
             if not hasattr(self, 'stamina'):
                 self.stamina = 50
+            # --- 新增擴充屬性：預設值補齊 ---
+            if not hasattr(self, 'intelligence'):
+                self.intelligence = 50
+            if not hasattr(self, 'diligence'):
+                self.diligence = 50
+            if not hasattr(self, 'charisma'):
+                self.charisma = 50
+            if not hasattr(self, 'experience'):
+                self.experience = 0
+            if not hasattr(self, 'luck_today'):
+                self.luck_today = 50
+            if not hasattr(self, 'last_luck_day'):
+                self.last_luck_day = -1
             # --- 補齊 Education ---
             if not hasattr(self, 'education_level'):
                 self.education_level = '高中'

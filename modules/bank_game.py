@@ -86,6 +86,95 @@ class BankGame:
         self._pending_save = False
         self._ui_update_scheduled = False
 
+    # --- 生活行為 / 屬性訓練 ---
+    def do_study_action(self):
+        """讀書：花費 $50、-10 體力；提升 智力、勤奮、經驗、少量快樂。"""
+        try:
+            cost_cash = 50.0
+            cost_stm = 10.0
+            if self.data.cash < cost_cash:
+                self.log_transaction("讀書失敗：現金不足！需要 $50")
+                return
+            if self.data.stamina < cost_stm:
+                self.log_transaction("讀書失敗：體力不足！需要 10 體力")
+                return
+            self.data.cash -= cost_cash
+            self.data.stamina = self._clamp_attr(self.data.stamina - cost_stm)
+            # 屬性成長（微幅）
+            self.data.intelligence = self._clamp_attr(self.data.intelligence + 3)
+            self.data.diligence = self._clamp_attr(self.data.diligence + 1)
+            self.data.experience = float(self.data.experience) + 2.0
+            self.data.happiness = self._clamp_attr(self.data.happiness + 1)
+            self.log_transaction("進行讀書：-現金 $50、-體力 10；+智力 3、+勤奮 1、+經驗 2、+快樂 1")
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"do_study_action error: {e}")
+
+    def do_workout_action(self):
+        """健身：花費 $30、-15 體力；提升 勤奮、少量魅力與快樂。"""
+        try:
+            cost_cash = 30.0
+            cost_stm = 15.0
+            if self.data.cash < cost_cash:
+                self.log_transaction("健身失敗：現金不足！需要 $30")
+                return
+            if self.data.stamina < cost_stm:
+                self.log_transaction("健身失敗：體力不足！需要 15 體力")
+                return
+            self.data.cash -= cost_cash
+            self.data.stamina = self._clamp_attr(self.data.stamina - cost_stm)
+            # 屬性成長
+            self.data.diligence = self._clamp_attr(self.data.diligence + 2)
+            self.data.charisma = self._clamp_attr(self.data.charisma + 1)
+            self.data.happiness = self._clamp_attr(self.data.happiness + 2)
+            self.log_transaction("進行健身：-現金 $30、-體力 15；+勤奮 2、+魅力 1、+快樂 2")
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"do_workout_action error: {e}")
+
+    def do_social_action(self):
+        """社交：花費 $40、-10 體力；提升 魅力 與 快樂，少量經驗。"""
+        try:
+            cost_cash = 40.0
+            cost_stm = 10.0
+            if self.data.cash < cost_cash:
+                self.log_transaction("社交失敗：現金不足！需要 $40")
+                return
+            if self.data.stamina < cost_stm:
+                self.log_transaction("社交失敗：體力不足！需要 10 體力")
+                return
+            self.data.cash -= cost_cash
+            self.data.stamina = self._clamp_attr(self.data.stamina - cost_stm)
+            # 屬性成長
+            self.data.charisma = self._clamp_attr(self.data.charisma + 3)
+            self.data.happiness = self._clamp_attr(self.data.happiness + 3)
+            self.data.experience = float(self.data.experience) + 1.0
+            self.log_transaction("進行社交：-現金 $40、-體力 10；+魅力 3、+快樂 3、+經驗 1")
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"do_social_action error: {e}")
+
+    def do_meditate_action(self):
+        """冥想：免費、-8 體力；提升 快樂 與 少量勤奮，當日小幅影響運氣。"""
+        try:
+            cost_stm = 8.0
+            if self.data.stamina < cost_stm:
+                self.log_transaction("冥想失敗：體力不足！需要 8 體力")
+                return
+            self.data.stamina = self._clamp_attr(self.data.stamina - cost_stm)
+            # 屬性成長
+            self.data.happiness = self._clamp_attr(self.data.happiness + 4)
+            self.data.diligence = self._clamp_attr(self.data.diligence + 1)
+            # 今日運氣微幅上調（冥想穩心）
+            try:
+                self.data.luck_today = self._clamp_attr(float(self.data.luck_today) + 2)
+            except Exception:
+                pass
+            self.log_transaction("進行冥想：-體力 8；+快樂 4、+勤奮 1、今日運氣 +2")
+            self.update_display()
+        except Exception as e:
+            self.debug_log(f"do_meditate_action error: {e}")
+
     # 將頻繁的 UI 刷新合併，避免 UI thrash
     def schedule_ui_update(self, delay_ms=0):
         try:
@@ -180,6 +269,19 @@ class BankGame:
         # 更新遊戲日數顯示
         self.update_game_day_label()
         self.update_stock_status_labels()
+        # 屬性分頁標籤更新（若存在）
+        try:
+            if hasattr(self, 'attr_labels') and isinstance(self.attr_labels, dict):
+                al = self.attr_labels
+                al.get('happiness', None) and al['happiness'].config(text=f"{self.data.happiness:.0f}")
+                al.get('stamina', None) and al['stamina'].config(text=f"{self.data.stamina:.0f}")
+                al.get('intelligence', None) and al['intelligence'].config(text=f"{getattr(self.data,'intelligence',0):.0f}")
+                al.get('diligence', None) and al['diligence'].config(text=f"{getattr(self.data,'diligence',0):.0f}")
+                al.get('charisma', None) and al['charisma'].config(text=f"{getattr(self.data,'charisma',0):.0f}")
+                al.get('experience', None) and al['experience'].config(text=f"{getattr(self.data,'experience',0):.0f}")
+                al.get('luck_today', None) and al['luck_today'].config(text=f"{getattr(self.data,'luck_today',50):.0f}")
+        except Exception:
+            pass
         # 更新配息資訊（如有）
         if hasattr(self, 'stock_dividend_labels'):
             for code, lbl in self.stock_dividend_labels.items():
@@ -293,6 +395,17 @@ class BankGame:
                 self.schedule_ui_update()
             # 每 self.DAY_TICKS 秒執行：利息、配息、礦機、每日結算（視為一天）
             if tick % self.DAY_TICKS == 0:
+                # 每日：生成今日運氣（受魅力微幅影響）
+                try:
+                    today = self.data.days + 1
+                    if int(getattr(self.data, 'last_luck_day', -1)) != today:
+                        base = random.gauss(50.0, 10.0)
+                        adj = 0.1 * (float(getattr(self.data, 'charisma', 50)) - 50.0)
+                        luck = self._clamp_attr(base + adj, 0.0, 100.0)
+                        self.data.luck_today = round(luck, 0)
+                        self.data.last_luck_day = today
+                except Exception as e:
+                    self.debug_log(f"luck roll error: {e}")
                 if self.data.balance > 0:
                     interest = self.data.balance * self.data.deposit_interest_rate
                     self.data.balance += interest
@@ -323,7 +436,17 @@ class BankGame:
                         comp_mult = float(getattr(self.data, 'companies_catalog', {}).get(comp_name, {}).get('salary_multiplier', 1.0))
                         edu_level = getattr(self.data, 'education_level', '高中')
                         edu_mult = float(getattr(self.data, 'education_multipliers', {}).get(edu_level, 1.0))
-                        gross = round(gross_base * comp_mult * edu_mult, 2)
+                        # 生產力加成（屬性）：智力/勤奮/魅力/今日運氣 皆提供極小幅加成
+                        try:
+                            intel = float(getattr(self.data, 'intelligence', 50.0))
+                            dili = float(getattr(self.data, 'diligence', 50.0))
+                            chrm = float(getattr(self.data, 'charisma', 50.0))
+                            luck = float(getattr(self.data, 'luck_today', 50.0))
+                            prod_mult = 1.0 + (intel - 50.0) / 500.0 + (dili - 50.0) / 500.0 + (chrm - 50.0) / 1000.0 + (luck - 50.0) / 1000.0
+                            prod_mult = max(0.8, min(1.3, prod_mult))
+                        except Exception:
+                            prod_mult = 1.0
+                        gross = round(gross_base * comp_mult * edu_mult * prod_mult, 2)
                         tax_rate = float(job.get('tax_rate', 0.0))
                         tax = max(0.0, round(gross * tax_rate, 2))
                         net = round(gross - tax, 2)
@@ -337,10 +460,31 @@ class BankGame:
                                 'net': net,
                             })
                             self.log_transaction(
-                                f"薪資入帳：毛薪 ${gross:.2f} (基礎 ${gross_base:.2f} x 公司{comp_mult:.2f} x 學歷{edu_mult:.2f})，扣稅 ${tax:.2f}，實領 ${net:.2f}"
+                                f"薪資入帳：毛薪 ${gross:.2f} (基礎 ${gross_base:.2f} x 公司{comp_mult:.2f} x 學歷{edu_mult:.2f} x 生產力{prod_mult:.2f})，扣稅 ${tax:.2f}，實領 ${net:.2f}"
                             )
                 except Exception as e:
                     self.debug_log(f"salary payout error: {e}")
+                # 進修完成檢查：若達到預定完成日，套用學歷升級
+                try:
+                    sip = getattr(self.data, 'study_in_progress', None)
+                    if isinstance(sip, dict):
+                        today = self.data.days + 1
+                        finish_day = int(sip.get('finish_day', 0))
+                        target = str(sip.get('target', ''))
+                        if target and today >= finish_day:
+                            # 完成進修：提升學歷並清除進修狀態
+                            self.data.education_level = target
+                            self.data.study_in_progress = None
+                            self.log_transaction(f"進修完成：學歷提升為 {target}！")
+                            self.show_event_message(f"進修完成！學歷提升為 {target}")
+                            try:
+                                self.jobs.update_job_ui()
+                            except Exception:
+                                pass
+                            # 安排保存
+                            self._pending_save = True
+                except Exception as e:
+                    self.debug_log(f"study finalize error: {e}")
                 # 支出：到期扣款
                 try:
                     freq_days = {'daily': 1, 'weekly': 7, 'monthly': 30}
@@ -391,6 +535,19 @@ class BankGame:
                     self.debug_log(f"expense deduction error: {e}")
                 # 一天結束後，遊戲天數 +1（固定30天/月）
                 self.data.days += 1
+                # 自然成長：經驗隨每日累積成長（就業+1，進修中再+1），並對快樂/體力做微幅回復/衰減（保留既有機制）
+                try:
+                    exp_gain = 0
+                    if getattr(self.data, 'job', None):
+                        exp_gain += 1
+                    sip = getattr(self.data, 'study_in_progress', None)
+                    if isinstance(sip, dict):
+                        exp_gain += 1
+                    if exp_gain > 0:
+                        cur_exp = float(getattr(self.data, 'experience', 0.0))
+                        self.data.experience = self._clamp_attr(cur_exp + exp_gain, 0.0, 1000.0)
+                except Exception as e:
+                    self.debug_log(f"exp growth error: {e}")
                 # 股利與 DRIP 委派到 DividendManager
                 try:
                     self.dividends.process_daily()
