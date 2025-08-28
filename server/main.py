@@ -5,11 +5,25 @@ import sqlite3
 from typing import Optional, List, Dict, Any
 import secrets
 import random
+import sys
+
+# 整合統一成就管理器
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'modules'))
+from unified_data_manager import UnifiedDataManager
+from unified_stock_manager import UnifiedStockManager
+from unified_achievement_manager import UnifiedAchievementManager
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "app.db"))
 API_KEY_EXPECTED = os.getenv("API_KEY", "dev-local-key")
 
 app = FastAPI(title="Life_Simulator Server", version="1.0.0")
+
+# 初始化統一資料管理器
+data_manager = UnifiedDataManager(db_path=DB_PATH)
+# 初始化統一股票管理器
+stock_manager = UnifiedStockManager(db_path=DB_PATH)
+# 初始化統一成就管理器
+achievement_manager = UnifiedAchievementManager(db_path=DB_PATH)
 
 
 def get_db():
@@ -402,47 +416,500 @@ def tick_advance(payload: AdvancePayload):
     return {"ok": True, "days": days}
 
 
-class SubmitWebPayload(BaseModel):
-    token: str
+class GameDataPayload(BaseModel):
+    game_data: Dict[str, Any]
+    username: str
+    save_name: Optional[str] = 'default'
+    platform: Optional[str] = 'web'
 
 
-@app.post("/leaderboard/submit_web")
-def leaderboard_submit_web(payload: SubmitWebPayload):
+class SaveLoadPayload(BaseModel):
+    username: str
+    save_name: Optional[str] = 'default'
+    platform: Optional[str] = None
+
+
+class MigratePayload(BaseModel):
+    from_username: str
+    from_platform: str
+    from_save_name: str
+    to_username: str
+    to_platform: str
+    to_save_name: str
+
+
+class TradePayload(BaseModel):
+    username: str
+    symbol: str
+    qty: float
+    action: str  # 'buy' 或 'sell'
+
+
+class AdvancedTradePayload(BaseModel):
+    username: str
+    symbol: str
+    qty: float
+    action: str
+    price: Optional[float] = None  # 如果不提供則使用當前價格
+
+
+class PortfolioPayload(BaseModel):
+    username: str
+    save_name: Optional[str] = 'default'
+    platform: Optional[str] = None
+
+
+class AchievementCheckPayload(BaseModel):
+    username: str
+    save_name: Optional[str] = 'default'
+    platform: Optional[str] = 'web'
+
+
+class AchievementExportPayload(BaseModel):
+    username: str
+
+
+# --- 統一遊戲資料管理 API ---
+
+@app.post("/game/save")
+def save_game_data(payload: GameDataPayload):
     """
-    Web 用提交排行榜，使用 token 取得使用者，無需 API Key。
-    將目前使用者的 net_worth 與 days 寫入 leaderboard。
+    儲存遊戲資料到統一系統
     """
-    username = get_username_by_token(payload.token)
-    conn = get_db()
-    cur = conn.cursor()
-    # 取得現金、天數
-    cur.execute("SELECT cash, days FROM users WHERE username= ?", (username,))
-    row = cur.fetchone()
-    cash = float(row["cash"]) if row else 0.0
-    days = int(row["days"]) if row else 0
-    # 取得持倉與價格以計算資產
-    cur.execute("SELECT symbol, qty FROM portfolios WHERE username= ?", (username,))
-    holdings_rows = cur.fetchall()
-    prices = get_prices(conn)
-    portfolio_value = 0.0
-    for r in holdings_rows:
-        sym = r["symbol"]
-        qty = float(r["qty"]) if r["qty"] is not None else 0.0
-        if sym in prices:
-            portfolio_value += qty * float(prices[sym])
-    asset = cash + portfolio_value
-    # upsert leaderboard
-    cur.execute(
-        """
-        INSERT INTO leaderboard (username, asset, days)
-        VALUES (?, ?, ?)
-        ON CONFLICT(username) DO UPDATE SET asset=excluded.asset, days=excluded.days
-        """,
-        (username, asset, days),
-    )
-    conn.commit()
-    conn.close()
-    return {"ok": True, "asset": round(asset, 2), "days": days}
+    try:
+        # 從 payload 建立 GameData 對象
+        from game_data import GameData
+        game_data = GameData()
+        game_data.__dict__.update(payload.game_data)
+
+        success = data_manager.save_game_data(
+            game_data,
+            payload.username,
+            payload.save_name,
+            payload.platform
+        )
+
+        if success:
+            return {"ok": True, "message": "遊戲資料儲存成功"}
+        else:
+            raise HTTPException(status_code=500, detail="儲存失敗")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"儲存遊戲資料失敗: {str(e)}")
+
+
+@app.post("/game/load")
+def load_game_data(payload: SaveLoadPayload):
+    """
+    從統一系統載入遊戲資料
+    """
+    try:
+        game_data = data_manager.load_game_data(
+            payload.username,
+            payload.save_name,
+            payload.platform
+        )
+
+        if game_data:
+            return {"ok": True, "game_data": game_data.__dict__}
+        else:
+            raise HTTPException(status_code=404, detail="找不到存檔")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"載入遊戲資料失敗: {str(e)}")
+
+
+@app.post("/game/migrate")
+def migrate_save(payload: MigratePayload):
+    """
+    跨平台存檔遷移
+    """
+    try:
+        success = data_manager.migrate_save(
+            payload.from_username,
+            payload.from_platform,
+            payload.from_save_name,
+            payload.to_username,
+            payload.to_platform,
+            payload.to_save_name
+        )
+
+        if success:
+            return {"ok": True, "message": "存檔遷移成功"}
+        else:
+            raise HTTPException(status_code=500, detail="遷移失敗")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"存檔遷移失敗: {str(e)}")
+
+
+@app.get("/game/saves")
+def list_saves(username: Optional[str] = None, platform: Optional[str] = None):
+    """
+    列出存檔列表
+    """
+    try:
+        saves = data_manager.list_saves(username, platform)
+        return {"ok": True, "saves": saves}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"列出存檔失敗: {str(e)}")
+
+
+@app.post("/game/export")
+def export_save(username: str, save_name: str = 'default', output_path: str = None, platform: str = None):
+    """
+    將存檔匯出為JSON檔案
+    """
+    try:
+        if not output_path:
+            output_path = f"{username}_{save_name}_export.json"
+
+        success = data_manager.export_to_json(username, save_name, output_path, platform)
+
+        if success:
+            return {"ok": True, "message": f"存檔已匯出至 {output_path}"}
+        else:
+            raise HTTPException(status_code=500, detail="匯出失敗")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"匯出存檔失敗: {str(e)}")
+
+
+@app.post("/game/import")
+def import_save(json_path: str, username: str, save_name: str = 'default', platform: str = 'web'):
+    """
+    從JSON檔案匯入存檔
+    """
+    try:
+        success = data_manager.import_from_json(json_path, username, save_name, platform)
+
+        if success:
+            return {"ok": True, "message": "存檔匯入成功"}
+        else:
+            raise HTTPException(status_code=500, detail="匯入失敗")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"匯入存檔失敗: {str(e)}")
+
+
+# --- 統一股票管理 API ---
+
+@app.get("/stocks/overview")
+def get_market_overview():
+    """
+    獲取市場概覽
+    """
+    try:
+        prices = stock_manager.sync_prices_from_database()
+        overview = stock_manager.get_market_overview(prices)
+        return {"ok": True, "overview": overview}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取市場概覽失敗: {str(e)}")
+
+
+@app.get("/stocks/industries")
+def get_industries():
+    """
+    獲取所有行業列表
+    """
+    try:
+        industries = stock_manager.get_all_industries()
+        return {"ok": True, "industries": industries}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取行業列表失敗: {str(e)}")
+
+
+@app.get("/stocks/industry/{industry}")
+def get_industry_stocks(industry: str):
+    """
+    獲取特定行業的股票
+    """
+    try:
+        stocks = stock_manager.get_industry_stocks(industry)
+        prices = stock_manager.sync_prices_from_database()
+        industry_prices = {stock: prices.get(stock, 0) for stock in stocks}
+        return {"ok": True, "stocks": stocks, "prices": industry_prices}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取行業股票失敗: {str(e)}")
+
+
+@app.post("/stocks/trade/advanced")
+def advanced_trade(payload: AdvancedTradePayload):
+    """
+    高級交易操作（支援複雜的持倉管理）
+    """
+    try:
+        # 載入用戶遊戲資料
+        game_data = data_manager.load_game_data(payload.username, 'default', 'web')
+        if not game_data:
+            raise HTTPException(status_code=404, detail="找不到用戶存檔")
+
+        # 獲取當前價格
+        prices = stock_manager.sync_prices_from_database()
+        if payload.symbol not in prices:
+            raise HTTPException(status_code=404, detail="股票代碼不存在")
+
+        price = payload.price or prices[payload.symbol]
+
+        # 處理交易
+        if payload.action == 'buy':
+            success, message, new_holdings = stock_manager.process_buy_order(
+                payload.symbol, payload.qty, price, game_data.cash,
+                game_data.stocks if hasattr(game_data, 'stocks') else {}
+            )
+
+            if success:
+                # 更新現金和持倉
+                game_data.cash -= payload.qty * price
+                if not hasattr(game_data, 'stocks'):
+                    game_data.stocks = {}
+                game_data.stocks.update(new_holdings)
+
+        elif payload.action == 'sell':
+            holdings = game_data.stocks if hasattr(game_data, 'stocks') else {}
+            if payload.symbol not in holdings:
+                raise HTTPException(status_code=400, detail="沒有持有該股票")
+
+            current_qty = holdings[payload.symbol]['owned']
+            if payload.qty > current_qty:
+                raise HTTPException(status_code=400, detail=".0f"".0f"f"持有股票不足，需要 {payload.qty:.0f} 股，目前持有 {current_qty:.0f} 股")
+
+            proceeds = payload.qty * price
+            game_data.cash += proceeds
+
+            if payload.qty >= current_qty:
+                del game_data.stocks[payload.symbol]
+            else:
+                game_data.stocks[payload.symbol]['owned'] -= payload.qty
+
+            success, message = True, ".2f"f"成功賣出 {payload.qty:.0f} 股，獲得 ${proceeds:.2f}"
+
+        else:
+            raise HTTPException(status_code=400, detail="無效的交易動作")
+
+        if success:
+            # 儲存更新後的遊戲資料
+            data_manager.save_game_data(game_data, payload.username, 'default', 'web')
+            return {"ok": True, "message": message, "cash": game_data.cash}
+        else:
+            raise HTTPException(status_code=400, detail=message)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"交易失敗: {str(e)}")
+
+
+@app.get("/portfolio/analysis")
+def get_portfolio_analysis(username: str):
+    """
+    獲取投資組合分析
+    """
+    try:
+        game_data = data_manager.load_game_data(username, 'default', 'web')
+        if not game_data:
+            raise HTTPException(status_code=404, detail="找不到用戶存檔")
+
+        prices = stock_manager.sync_prices_from_database()
+        holdings = game_data.stocks if hasattr(game_data, 'stocks') else {}
+
+        # 轉換持倉格式
+        holdings_formatted = {}
+        for symbol, stock_data in holdings.items():
+            if stock_data.get('owned', 0) > 0:
+                holdings_formatted[symbol] = {
+                    'qty': stock_data['owned'],
+                    'avg_cost': stock_data.get('total_cost', 0) / stock_data['owned'] if stock_data['owned'] > 0 else 0
+                }
+
+        portfolio_value = stock_manager.calculate_portfolio_value(holdings_formatted, prices)
+        total_gain, total_loss = stock_manager.calculate_total_gain_loss(holdings_formatted, prices)
+
+        return {
+            "ok": True,
+            "portfolio_value": portfolio_value,
+            "total_gain": total_gain,
+            "total_loss": total_loss,
+            "net_worth": game_data.cash + portfolio_value,
+            "holdings": holdings_formatted
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取投資組合分析失敗: {str(e)}")
+
+
+@app.get("/stocks/recommendations")
+def get_investment_recommendations(username: str):
+    """
+    獲取投資建議
+    """
+    try:
+        game_data = data_manager.load_game_data(username, 'default', 'web')
+        if not game_data:
+            raise HTTPException(status_code=404, detail="找不到用戶存檔")
+
+        prices = stock_manager.sync_prices_from_database()
+        holdings = game_data.stocks if hasattr(game_data, 'stocks') else {}
+
+        # 轉換持倉格式
+        holdings_formatted = {}
+        for symbol, stock_data in holdings.items():
+            if stock_data.get('owned', 0) > 0:
+                holdings_formatted[symbol] = {
+                    'qty': stock_data['owned'],
+                    'avg_cost': stock_data.get('total_cost', 0) / stock_data['owned'] if stock_data['owned'] > 0 else 0
+                }
+
+        recommendations = stock_manager.get_recommendations(holdings_formatted, prices, game_data.cash)
+
+        return {"ok": True, "recommendations": recommendations}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取投資建議失敗: {str(e)}")
+
+
+@app.post("/stocks/tick/advanced")
+def advanced_price_tick(x_api_key: Optional[str] = Header(default=None)):
+    """
+    高級價格更新（支援行業周期和市場波動）
+    """
+    require_api_key(x_api_key)
+
+    try:
+        # 獲取當前價格
+        current_prices = stock_manager.sync_prices_from_database()
+
+        # 使用統一股票管理器更新價格
+        updated_prices = stock_manager.update_prices_random_walk(current_prices)
+
+        # 同步回資料庫
+        stock_manager.sync_prices_to_database(updated_prices)
+
+        return {"ok": True, "updated_prices": updated_prices}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"價格更新失敗: {str(e)}")
+
+
+# --- 統一成就管理 API ---
+
+@app.post("/achievements/check")
+def check_achievements(payload: AchievementCheckPayload):
+    """
+    檢查並更新用戶成就
+    """
+    try:
+        game_data = data_manager.load_game_data(payload.username, payload.save_name, payload.platform)
+        if not game_data:
+            raise HTTPException(status_code=404, detail="找不到用戶存檔")
+
+        newly_unlocked = achievement_manager.check_achievements(game_data, payload.username)
+
+        return {
+            "ok": True,
+            "newly_unlocked": [{
+                "key": a.key,
+                "name": a.name,
+                "description": a.description,
+                "category": a.category,
+                "points": a.points,
+                "rarity": a.rarity
+            } for a in newly_unlocked],
+            "total_new": len(newly_unlocked)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"檢查成就失敗: {str(e)}")
+
+
+@app.get("/achievements/user/{username}")
+def get_user_achievements(username: str):
+    """
+    獲取用戶成就統計
+    """
+    try:
+        achievements_data = achievement_manager.get_user_achievements(username)
+        return {"ok": True, "data": achievements_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取用戶成就失敗: {str(e)}")
+
+
+@app.get("/achievements/leaderboard")
+def get_achievement_leaderboard(limit: int = 100):
+    """
+    獲取成就排行榜
+    """
+    try:
+        leaderboard = achievement_manager.get_achievement_leaderboard(limit)
+        return {"ok": True, "leaderboard": leaderboard}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取排行榜失敗: {str(e)}")
+
+
+@app.get("/achievements/categories")
+def get_achievement_categories():
+    """
+    獲取成就分類列表
+    """
+    try:
+        categories = achievement_manager.get_achievement_categories()
+        return {"ok": True, "categories": categories}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取成就分類失敗: {str(e)}")
+
+
+@app.get("/achievements/category/{category}")
+def get_achievements_by_category(category: str):
+    """
+    按分類獲取成就列表
+    """
+    try:
+        achievements = achievement_manager.get_achievements_by_category(category)
+        return {"ok": True, "achievements": achievements}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取分類成就失敗: {str(e)}")
+
+
+@app.get("/achievements/stats")
+def get_achievement_stats():
+    """
+    獲取成就統計資料
+    """
+    try:
+        stats = achievement_manager.get_achievement_stats()
+        return {"ok": True, "stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"獲取成就統計失敗: {str(e)}")
+
+
+@app.post("/achievements/export")
+def export_achievements(payload: AchievementExportPayload):
+    """
+    匯出用戶成就資料
+    """
+    try:
+        achievements_json = achievement_manager.export_achievements(payload.username)
+        return {"ok": True, "achievements_json": achievements_json}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"匯出成就失敗: {str(e)}")
+
+
+@app.post("/achievements/import")
+def import_achievements(username: str, achievements_json: str):
+    """
+    匯入成就資料
+    """
+    try:
+        achievement_manager.import_achievements(username, achievements_json)
+        return {"ok": True, "message": "成就資料匯入成功"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"匯入成就失敗: {str(e)}")
 
 
 if __name__ == "__main__":
