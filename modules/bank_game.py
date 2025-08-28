@@ -90,6 +90,8 @@ class BankGame:
     def do_study_action(self):
         """讀書：花費 $50、-10 體力；提升 智力、勤奮、經驗、少量快樂。"""
         try:
+            if not self._activity_can_do('study'):
+                return
             cost_cash = 50.0
             cost_stm = 10.0
             if self.data.cash < cost_cash:
@@ -106,6 +108,7 @@ class BankGame:
             self.data.experience = float(self.data.experience) + 2.0
             self.data.happiness = self._clamp_attr(self.data.happiness + 1)
             self.log_transaction("進行讀書：-現金 $50、-體力 10；+智力 3、+勤奮 1、+經驗 2、+快樂 1")
+            self._activity_consume('study')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_study_action error: {e}")
@@ -113,6 +116,8 @@ class BankGame:
     def do_workout_action(self):
         """健身：花費 $30、-15 體力；提升 勤奮、少量魅力與快樂。"""
         try:
+            if not self._activity_can_do('workout'):
+                return
             cost_cash = 30.0
             cost_stm = 15.0
             if self.data.cash < cost_cash:
@@ -128,6 +133,7 @@ class BankGame:
             self.data.charisma = self._clamp_attr(self.data.charisma + 1)
             self.data.happiness = self._clamp_attr(self.data.happiness + 2)
             self.log_transaction("進行健身：-現金 $30、-體力 15；+勤奮 2、+魅力 1、+快樂 2")
+            self._activity_consume('workout')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_workout_action error: {e}")
@@ -135,6 +141,8 @@ class BankGame:
     def do_social_action(self):
         """社交：花費 $40、-10 體力；提升 魅力 與 快樂，少量經驗。"""
         try:
+            if not self._activity_can_do('social'):
+                return
             cost_cash = 40.0
             cost_stm = 10.0
             if self.data.cash < cost_cash:
@@ -150,6 +158,7 @@ class BankGame:
             self.data.happiness = self._clamp_attr(self.data.happiness + 3)
             self.data.experience = float(self.data.experience) + 1.0
             self.log_transaction("進行社交：-現金 $40、-體力 10；+魅力 3、+快樂 3、+經驗 1")
+            self._activity_consume('social')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_social_action error: {e}")
@@ -157,6 +166,8 @@ class BankGame:
     def do_meditate_action(self):
         """冥想：免費、-8 體力；提升 快樂 與 少量勤奮，當日小幅影響運氣。"""
         try:
+            if not self._activity_can_do('meditate'):
+                return
             cost_stm = 8.0
             if self.data.stamina < cost_stm:
                 self.log_transaction("冥想失敗：體力不足！需要 8 體力")
@@ -171,6 +182,7 @@ class BankGame:
             except Exception:
                 pass
             self.log_transaction("進行冥想：-體力 8；+快樂 4、+勤奮 1、今日運氣 +2")
+            self._activity_consume('meditate')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_meditate_action error: {e}")
@@ -303,12 +315,119 @@ class BankGame:
             pass
         self.update_charts()
         self.update_achievements_list()
+        # 活動按鈕狀態/文字更新
+        try:
+            self.update_activity_buttons()
+        except Exception:
+            pass
         # 將頻繁 I/O 轉為延遲合併寫入
         if hasattr(self, 'username') and self.username:
             self._pending_leaderboard = True
         if hasattr(self, 'savefile'):
             self._pending_save = True
         self.schedule_persist()
+
+    # --- 活動（每日上限與冷卻）---
+    def _ensure_activity_structs(self):
+        try:
+            rules = getattr(self.data, 'activity_rules', None)
+            state = getattr(self.data, 'activity_state', None)
+            if not isinstance(rules, dict):
+                self.data.activity_rules = {
+                    'study': {'daily_max': 3, 'cooldown_days': 1},
+                    'workout': {'daily_max': 3, 'cooldown_days': 1},
+                    'social': {'daily_max': 3, 'cooldown_days': 1},
+                    'meditate': {'daily_max': 3, 'cooldown_days': 1},
+                }
+                rules = self.data.activity_rules
+            if not isinstance(state, dict):
+                state = {}
+            for k, rule in self.data.activity_rules.items():
+                st = state.get(k, {})
+                st.setdefault('remaining', int(rule.get('daily_max', 3)))
+                st.setdefault('cd_left', 0)
+                state[k] = st
+            self.data.activity_state = state
+        except Exception as e:
+            self.debug_log(f"_ensure_activity_structs error: {e}")
+
+    def _activity_can_do(self, key: str) -> bool:
+        self._ensure_activity_structs()
+        st = self.data.activity_state.get(key, {})
+        cd = int(st.get('cd_left', 0))
+        rem = int(st.get('remaining', 0))
+        if cd > 0:
+            self.log_transaction(f"{self._activity_label(key)}冷卻中：剩餘 {cd} 天")
+            return False
+        if rem <= 0:
+            self.log_transaction(f"{self._activity_label(key)}今日次數已用盡！")
+            return False
+        return True
+
+    def _activity_consume(self, key: str):
+        try:
+            self._ensure_activity_structs()
+            rule = self.data.activity_rules.get(key, {'daily_max': 3, 'cooldown_days': 1})
+            st = self.data.activity_state.get(key, {'remaining': rule.get('daily_max', 3), 'cd_left': 0})
+            st['remaining'] = max(0, int(st.get('remaining', 0)) - 1)
+            if st['remaining'] <= 0:
+                st['cd_left'] = int(rule.get('cooldown_days', 1))
+            self.data.activity_state[key] = st
+        except Exception as e:
+            self.debug_log(f"_activity_consume error: {e}")
+
+    def _daily_activity_rollover(self):
+        self._ensure_activity_structs()
+        try:
+            for k, rule in self.data.activity_rules.items():
+                st = self.data.activity_state.get(k, {})
+                cd = max(0, int(st.get('cd_left', 0)) - 1)
+                st['cd_left'] = cd
+                st['remaining'] = int(rule.get('daily_max', 3))
+                self.data.activity_state[k] = st
+        except Exception as e:
+            self.debug_log(f"_daily_activity_rollover error: {e}")
+
+    def _activity_label(self, key: str) -> str:
+        return {
+            'study': '讀書',
+            'workout': '健身',
+            'social': '社交',
+            'meditate': '冥想',
+        }.get(key, key)
+
+    def update_activity_buttons(self):
+        self._ensure_activity_structs()
+        btn_map = {
+            'study': getattr(self, 'btn_study', None),
+            'workout': getattr(self, 'btn_workout', None),
+            'social': getattr(self, 'btn_social', None),
+            'meditate': getattr(self, 'btn_meditate', None),
+        }
+        base_text = {
+            'study': '讀書（$50、-10體力）',
+            'workout': '健身（$30、-15體力）',
+            'social': '社交（$40、-10體力）',
+            'meditate': '冥想（免費、-8體力）',
+        }
+        for key, btn in btn_map.items():
+            if btn is None:
+                continue
+            st = self.data.activity_state.get(key, {})
+            rule = self.data.activity_rules.get(key, {})
+            rem = int(st.get('remaining', int(rule.get('daily_max', 3))))
+            cd = int(st.get('cd_left', 0))
+            text = f"{base_text.get(key, key)} | 次數 {rem}/{int(rule.get('daily_max', 3))}"
+            if cd > 0:
+                text += f" (CD:{cd}天)"
+            try:
+                btn.config(text=text)
+                if cd > 0 or rem <= 0:
+                    btn.state(['disabled'])
+                else:
+                    btn.state(['!disabled'])
+            except Exception:
+                pass
 
     def update_report_ui(self):
         # 委派至 ReportsChartsManager
@@ -567,6 +686,11 @@ class BankGame:
                     self.debug_log(f"auto features error: {e}")
                 # 每日結束時也更新一次基金 NAV 並記錄歷史
                 self.compute_fund_navs(record_history=True)
+                # 活動上限與冷卻每日輪替
+                try:
+                    self._daily_activity_rollover()
+                except Exception as e:
+                    self.debug_log(f"activity rollover error: {e}")
                 self.schedule_ui_update()
             # 破產偵測
             self.check_bankruptcy_and_reborn()

@@ -57,6 +57,19 @@ class GameData:
         self.last_luck_day = -1
         if is_reborn:
             self.reborn_count += 1
+        # --- Activities 規則與狀態（冷卻與每日上限）---
+        # activity_rules: 每個活動的每日上限與冷卻天數
+        self.activity_rules = {
+            'study': {'daily_max': 3, 'cooldown_days': 1},
+            'workout': {'daily_max': 3, 'cooldown_days': 1},
+            'social': {'daily_max': 3, 'cooldown_days': 1},
+            'meditate': {'daily_max': 3, 'cooldown_days': 1},
+        }
+        # activity_state: 當日剩餘次數與冷卻剩餘天數
+        self.activity_state = {
+            k: {'remaining': v['daily_max'], 'cd_left': 0}
+            for k, v in self.activity_rules.items()
+        }
         # --- Work Mode (上班模式) 預設欄位 ---
         # 當前工作：name, level, salary_per_day, tax_rate, next_promotion_day
         self.job = None
@@ -255,6 +268,27 @@ class GameData:
                     '資深工程師': {'base_salary_per_day': 200.0, 'tax_rate': 0.12},
                     '經理': {'base_salary_per_day': 300.0, 'tax_rate': 0.15},
                 }
+            # --- 補齊 Activities 欄位 ---
+            if not hasattr(self, 'activity_rules') or not isinstance(getattr(self, 'activity_rules', None), dict):
+                self.activity_rules = {
+                    'study': {'daily_max': 3, 'cooldown_days': 1},
+                    'workout': {'daily_max': 3, 'cooldown_days': 1},
+                    'social': {'daily_max': 3, 'cooldown_days': 1},
+                    'meditate': {'daily_max': 3, 'cooldown_days': 1},
+                }
+            # 狀態若不存在或格式錯誤則重建
+            if not hasattr(self, 'activity_state') or not isinstance(getattr(self, 'activity_state', None), dict):
+                self.activity_state = {}
+            # 同步 rules 與 state 的鍵與預設值
+            for k, rule in self.activity_rules.items():
+                st = self.activity_state.get(k)
+                if not isinstance(st, dict):
+                    st = {}
+                if 'remaining' not in st:
+                    st['remaining'] = int(rule.get('daily_max', 3))
+                if 'cd_left' not in st:
+                    st['cd_left'] = 0
+                self.activity_state[k] = st
             # --- 補齊 Expenses 欄位 ---
             if not hasattr(self, 'expenses'):
                 self.expenses = []
