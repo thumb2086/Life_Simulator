@@ -2277,6 +2277,7 @@ def get_seasonal_calendar():
 
         return {"ok": True, "calendar": calendar}
 
+    except Exception as e:
         raise HTTPException(status_code=500, detail=f"獲取活動日曆失敗: {str(e)}")
 
 
