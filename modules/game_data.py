@@ -14,6 +14,17 @@ class GameData:
         self.loan = 0
         self.deposit_interest_rate = 0.01
         self.loan_interest_rate = 0.005
+        
+        # 初始化消耗品每日購買計數
+        if hasattr(self, 'consumables'):
+            for item_id in self.consumables:
+                self.consumables[item_id]['daily_bought'] = 0
+        
+        # 初始化活躍 Buff
+        self.active_buffs = []
+        
+        # 設定預設難度
+        self.current_difficulty = 'normal'
         # 多檔股票資料
         self.stocks = {
             'TSMC': {'name': '台積電', 'industry': '科技業', 'price': 100, 'owned': 0, 'total_cost': 0, 'history': [100], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
@@ -113,8 +124,81 @@ class GameData:
         self.expense_defaults_added = False
         # 商店：可購買的項目與玩家物品清單（嘗試外部讀取 data/store_catalog.json）
         self.store_catalog = self._load_store_catalog_external()
-
-        self.inventory = []
+        
+        # 消耗品定義：名稱、價格、效果、持續時間(天)、每日限購、描述
+        self.consumables = {
+            'energy_drink': {
+                'name': '能量飲料',
+                'price': 50,
+                'effects': [
+                    {'type': 'stamina', 'value': 20, 'duration': 0},  # 立即恢復體力
+                    {'type': 'buff', 'stat': 'productivity', 'value': 0.2, 'duration': 24}  # 臨時提升生產力
+                ],
+                'daily_limit': 5,
+                'daily_bought': 0,
+                'description': '立即恢復20體力，並在24小時內提升20%生產力'
+            },
+            'study_kit': {
+                'name': '學習套組',
+                'price': 100,
+                'effects': [
+                    {'type': 'buff', 'stat': 'intelligence', 'value': 0.3, 'duration': 72},
+                    {'type': 'buff', 'stat': 'study_efficiency', 'value': 0.5, 'duration': 72}
+                ],
+                'daily_limit': 3,
+                'daily_bought': 0,
+                'description': '72小時內提升30%智力成長與50%學習效率'
+            },
+            'social_card': {
+                'name': '社交卡',
+                'price': 80,
+                'effects': [
+                    {'type': 'buff', 'stat': 'charisma', 'value': 0.4, 'duration': 48},
+                    {'type': 'buff', 'stat': 'luck', 'value': 0.3, 'duration': 24}
+                ],
+                'daily_limit': 3,
+                'daily_bought': 0,
+                'description': '48小時內提升40%魅力，24小時內提升30%運氣'
+            }
+        }
+        
+        # 玩家庫存：儲存擁有的消耗品 {item_id: quantity}
+        self.inventory = {item_id: 0 for item_id in self.consumables}
+        
+        # 活躍的 Buff 效果
+        self.active_buffs = []
+        
+        # 難度模式設定
+        self.difficulty_levels = {
+            'easy': {
+                'salary_multiplier': 1.2,
+                'expense_multiplier': 0.8,
+                'stock_volatility': 0.8,
+                'event_frequency': 0.8,
+                'event_severity': 0.8,
+                'activity_benefit': 1.2,
+                'activity_cooldown': 0.8
+            },
+            'normal': {
+                'salary_multiplier': 1.0,
+                'expense_multiplier': 1.0,
+                'stock_volatility': 1.0,
+                'event_frequency': 1.0,
+                'event_severity': 1.0,
+                'activity_benefit': 1.0,
+                'activity_cooldown': 1.0
+            },
+            'hard': {
+                'salary_multiplier': 0.8,
+                'expense_multiplier': 1.2,
+                'stock_volatility': 1.2,
+                'event_frequency': 1.2,
+                'event_severity': 1.2,
+                'activity_benefit': 0.8,
+                'activity_cooldown': 1.2
+            }
+        }
+        self.current_difficulty = 'normal'
         # --- Auto-Invest (DCA) 設定 ---
         # 股票定投：{code: {amount_cash: float, interval_days: int, next_day: int}}
         self.dca_stocks = {}
@@ -198,6 +282,27 @@ class GameData:
                 if 'next_dividend_day' not in stock:
                     stock['next_dividend_day'] = 30
                 # 確保舊存檔也有 buy_points 和 sell_points
+            
+            # 確保消耗品相關欄位存在
+            if not hasattr(self, 'consumables'):
+                # 這裡的初始值會由 reset() 方法設置
+                self.consumables = {}
+                
+            if not hasattr(self, 'inventory'):
+                self.inventory = {}
+                
+            if not hasattr(self, 'active_buffs'):
+                self.active_buffs = []
+                
+            if not hasattr(self, 'difficulty_levels'):
+                self.difficulty_levels = {
+                    'easy': {'salary_multiplier': 1.2, 'expense_multiplier': 0.8},
+                    'normal': {'salary_multiplier': 1.0, 'expense_multiplier': 1.0},
+                    'hard': {'salary_multiplier': 0.8, 'expense_multiplier': 1.2}
+                }
+                
+            if not hasattr(self, 'current_difficulty'):
+                self.current_difficulty = 'normal'
                 if 'buy_points' not in stock:
                     stock['buy_points'] = []
                 if 'sell_points' not in stock:
@@ -381,6 +486,123 @@ class GameData:
             }
         }
 
+    def total_assets(self):
+        return self.balance + self.cash - self.loan
+        
+    def can_afford(self, amount):
+        """檢查現金是否足夠支付指定金額"""
+        return self.cash >= amount
+        
+    def add_item(self, item_id, quantity=1):
+        """添加物品到庫存"""
+        if item_id in self.inventory:
+            self.inventory[item_id] += quantity
+        else:
+            self.inventory[item_id] = quantity
+        return self.inventory[item_id]
+        
+    def remove_item(self, item_id, quantity=1):
+        """從庫存中移除物品"""
+        if item_id not in self.inventory or self.inventory[item_id] < quantity:
+            return False
+        self.inventory[item_id] -= quantity
+        if self.inventory[item_id] <= 0:
+            del self.inventory[item_id]
+        return True
+        
+    def has_item(self, item_id, quantity=1):
+        """檢查是否擁有足夠數量的物品"""
+        return item_id in self.inventory and self.inventory[item_id] >= quantity
+        
+    def buy_consumable(self, item_id, quantity=1):
+        """購買消耗品"""
+        if item_id not in self.consumables:
+            return False, "無效的物品ID"
+            
+        item = self.consumables[item_id]
+        total_cost = item['price'] * quantity
+        
+        # 檢查金錢是否足夠
+        if not self.can_afford(total_cost):
+            return False, "現金不足"
+            
+        # 檢查每日限購
+        if item['daily_bought'] + quantity > item['daily_limit']:
+            return False, f"已達每日限購數量 (今日還可購買 {item['daily_limit'] - item['daily_bought']} 個)"
+            
+        # 扣錢並增加物品
+        self.cash -= total_cost
+        self.add_item(item_id, quantity)
+        item['daily_bought'] += quantity
+        
+        return True, f"成功購買 {quantity} 個 {item['name']}"
+        
+    def use_consumable(self, item_id):
+        """使用消耗品"""
+        if not self.has_item(item_id):
+            return False, "物品不存在或數量不足"
+            
+        if item_id not in self.consumables:
+            return False, "無效的物品ID"
+            
+        item = self.consumables[item_id]
+        
+        # 應用效果
+        results = []
+        for effect in item.get('effects', []):
+            if effect['type'] == 'stamina':
+                self.stamina = min(100, self.stamina + effect['value'])
+                results.append(f"體力 +{effect['value']}")
+            elif effect['type'] == 'buff':
+                self.add_buff(
+                    stat=effect['stat'],
+                    value=effect['value'],
+                    duration=effect['duration']
+                )
+                results.append(f"{effect['stat']} +{int(effect['value']*100)}% ({effect['duration']}小時)")
+        
+        # 從庫存中移除
+        self.remove_item(item_id)
+        
+        return True, f"使用 {item['name']} 成功！\n效果: {', '.join(results)}"
+        
+    def add_buff(self, stat, value, duration, description=""):
+        """添加一個buff效果"""
+        self.active_buffs.append({
+            'stat': stat,
+            'value': value,
+            'duration': duration * 60,  # 轉換為分鐘
+            'applied_at': 0,  # 會在 unified_timer 中更新
+            'description': description
+        })
+        
+    def get_buff_value(self, stat):
+        """獲取指定屬性的buff加成總和"""
+        total = 0.0
+        for buff in self.active_buffs:
+            if buff['stat'] == stat:
+                total += buff['value']
+        return total
+        
+    def update_buffs(self, minutes_passed=1):
+        """更新buff持續時間，返回過期的buff列表"""
+        if not hasattr(self, 'active_buffs'):
+            self.active_buffs = []
+            return []
+            
+        expired = []
+        remaining = []
+        
+        for buff in self.active_buffs:
+            buff['duration'] = max(0, buff['duration'] - minutes_passed)
+            if buff['duration'] <= 0:
+                expired.append(buff)
+            else:
+                remaining.append(buff)
+                
+        self.active_buffs = remaining
+        return expired
+
     def is_valid(self):
         return self.balance is not None and self.cash is not None
 
@@ -395,10 +617,9 @@ class GameData:
         # 總資產 = 銀行存款 + 現金 + 普通股票市值 + 比特幣市值 - 貸款
         return self.balance + self.cash + stock_value + btc_market_value - self.loan
     
-    @property
-    def loan_limit(self):
-        # 貸款上限為資產5倍（不含貸款本身）
-        assets = self.balance + self.cash + \
-                 sum(s['price'] * s['owned'] for s in self.stocks.values() if s['name'] != '比特幣') + \
-                 (self.btc_balance * self.stocks['BTC']['price'])
-        return assets * 5
+    def get_difficulty_multiplier(self, key):
+        """獲取當前難度的倍率"""
+        if not hasattr(self, 'difficulty_levels') or not hasattr(self, 'current_difficulty'):
+            return 1.0
+        level = self.difficulty_levels.get(self.current_difficulty, {})
+        return level.get(key, 1.0)

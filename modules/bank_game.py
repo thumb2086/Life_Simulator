@@ -3,6 +3,7 @@ from theme_manager import ThemeManager
 from game_data import GameData
 from slot_machine import SlotMachine
 from achievements import AchievementsManager
+from consumables_ui import ConsumablesUI
 from events import EventManager
 from leaderboard import Leaderboard
 import tkinter as tk
@@ -52,6 +53,10 @@ class BankGame:
         self.reports = ReportsChartsManager(self)
         # 商店與支出管理器
         self.store = StoreExpensesManager(self)
+        # 消耗品UI
+        self.consumables_ui = None
+        # 初始化消耗品數據
+        self._init_consumables()
         # 記錄器
         self.logger = GameLogger(self)
         # 工作/薪資管理器
@@ -109,6 +114,8 @@ class BankGame:
             self.data.happiness = self._clamp_attr(self.data.happiness + 1)
             self.log_transaction("進行讀書：-現金 $50、-體力 10；+智力 3、+勤奮 1、+經驗 2、+快樂 1")
             self._activity_consume('study')
+            # 添加學習Buff：臨時提升智力成長
+            self.data.add_buff('intelligence', 0.5, 1, '讀書學習效果')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_study_action error: {e}")
@@ -134,6 +141,8 @@ class BankGame:
             self.data.happiness = self._clamp_attr(self.data.happiness + 2)
             self.log_transaction("進行健身：-現金 $30、-體力 15；+勤奮 2、+魅力 1、+快樂 2")
             self._activity_consume('workout')
+            # 添加健身Buff：臨時提升生產力
+            self.data.add_buff('productivity', 0.3, 1, '健身訓練效果')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_workout_action error: {e}")
@@ -159,6 +168,8 @@ class BankGame:
             self.data.experience = float(self.data.experience) + 1.0
             self.log_transaction("進行社交：-現金 $40、-體力 10；+魅力 3、+快樂 3、+經驗 1")
             self._activity_consume('social')
+            # 添加社交Buff：臨時提升運氣
+            self.data.add_buff('luck', 0.4, 1, '社交互動效果')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_social_action error: {e}")
@@ -183,6 +194,8 @@ class BankGame:
                 pass
             self.log_transaction("進行冥想：-體力 8；+快樂 4、+勤奮 1、今日運氣 +2")
             self._activity_consume('meditate')
+            # 添加冥想Buff：臨時提升運氣
+            self.data.add_buff('luck', 0.5, 2, '冥想平靜效果')
             self.update_display()
         except Exception as e:
             self.debug_log(f"do_meditate_action error: {e}")
@@ -244,8 +257,116 @@ class BankGame:
     def cancel_subscription_from_ui(self):
         return self.store.cancel_subscription_from_ui()
 
+    def _init_consumables(self):
+        """初始化消耗品數據"""
+        if not hasattr(self.data, 'consumables') or not isinstance(self.data.consumables, dict):
+            self.data.consumables = {
+                'energy_drink': {
+                    'name': '能量飲料',
+                    'price': 50.0,
+                    'daily_limit': 3,
+                    'daily_bought': 0,
+                    'description': '恢復體力，讓你更有活力',
+                    'restore': {'energy': 30},
+                    'important': True
+                },
+                'study_kit': {
+                    'name': '學習包',
+                    'price': 100.0,
+                    'daily_limit': 2,
+                    'daily_bought': 0,
+                    'description': '提升學習效率',
+                    'buffs': [
+                        {'stat': 'intelligence', 'amount': 5, 'duration': 1},
+                        {'stat': 'diligence', 'amount': 5, 'duration': 1}
+                    ]
+                },
+                'social_card': {
+                    'name': '社交卡',
+                    'price': 80.0,
+                    'daily_limit': 2,
+                    'daily_bought': 0,
+                    'description': '提升社交能力',
+                    'buffs': [
+                        {'stat': 'charisma', 'amount': 8, 'duration': 1},
+                        {'stat': 'happiness', 'amount': 5, 'duration': 1}
+                    ]
+                }
+            }
+            
+        # 確保所有消耗品都有必要的欄位
+        for item_id, item in self.data.consumables.items():
+            item.setdefault('daily_bought', 0)
+            item.setdefault('daily_limit', 1)
+            item.setdefault('important', False)
+    
     def buy_store_good(self, name, price):
         return self.store.buy_store_good(name, price)
+        
+    def use_item(self, item_id: str) -> tuple[bool, str]:
+        """
+        使用指定物品
+        
+        Args:
+            item_id: 物品ID
+            
+        Returns:
+            tuple[bool, str]: (是否成功, 結果訊息)
+        """
+        try:
+            # 檢查物品是否存在於庫存
+            if item_id not in self.data.inventory or self.data.inventory[item_id] <= 0:
+                return False, f"沒有可用的 {item_id}"
+                
+            # 檢查是否為有效的消耗品
+            if item_id not in self.data.consumables:
+                return False, f"無法使用此物品: {item_id}"
+                
+            item = self.data.consumables[item_id]
+            item_name = item.get('name', item_id)
+            
+            # 處理物品效果
+            success = True
+            message = f"已使用 {item_name}"
+            
+            # 處理恢復效果
+            if 'restore' in item:
+                for stat, amount in item['restore'].items():
+                    if hasattr(self.data, stat):
+                        current = getattr(self.data, stat, 0)
+                        max_val = 100  # 假設最大值為100
+                        new_val = min(max_val, current + amount)
+                        setattr(self.data, stat, new_val)
+                        message += f"\n{stat} 恢復了 {amount} 點"
+            
+            # 處理增益效果
+            if 'buffs' in item:
+                for buff in item['buffs']:
+                    stat = buff.get('stat')
+                    amount = buff.get('amount', 0)
+                    duration = buff.get('duration', 1)  # 默認持續1天
+                    
+                    if stat and hasattr(self.data, stat):
+                        # 添加或更新buff
+                        description = f"{item_name} 效果"
+                        self.data.add_buff(stat, amount, duration, description)
+                        message += f"\n{stat} 提升了 {amount} 點，持續 {duration} 天"
+            
+            # 從庫存中移除物品
+            self.data.inventory[item_id] -= 1
+            if self.data.inventory[item_id] <= 0:
+                del self.data.inventory[item_id]
+            
+            # 更新UI和存檔
+            self.update_display()
+            self._pending_save = True
+            self.schedule_persist()
+            
+            return True, message
+            
+        except Exception as e:
+            self.debug_log(f"use_item error: {e}")
+            return False, f"使用物品時發生錯誤: {str(e)}"
 
     # --- 商店：UI 綁定 ---
     def update_store_ui(self):
@@ -275,6 +396,34 @@ class BankGame:
         self.balance_label.config(text=f"銀行餘額: ${self.data.balance:.2f}")
         self.cash_label.config(text=f"現金: ${self.data.cash:.2f}")
         self.loan_label.config(text=f"貸款: ${self.data.loan:.2f}")
+        
+        # 更新Buff顯示
+        if hasattr(self, 'buffs_label'):
+            buffs = getattr(self.data, 'active_buffs', [])
+            if buffs:
+                buff_text = "當前效果: " + ", ".join([
+                    f"{buff.get('description', buff['stat'])} ({buff['duration']//60}天)" 
+                    for buff in buffs
+                ])
+                self.buffs_label.config(text=buff_text)
+            else:
+                self.buffs_label.config(text="當前沒有活躍效果")
+                
+        # 更新消耗品數量顯示
+        if hasattr(self, 'consumables_label') and hasattr(self.data, 'inventory'):
+            consumables = []
+            for item_id, quantity in self.data.inventory.items():
+                if item_id in getattr(self.data, 'consumables', {}):
+                    item_name = self.data.consumables[item_id].get('name', item_id)
+                    consumables.append(f"{item_name} x{quantity}")
+            
+            if consumables:
+                self.consumables_label.config(
+                    text="物品欄: " + ", ".join(consumables),
+                    wraplength=400
+                )
+            else:
+                self.consumables_label.config(text="物品欄: 空")
         self.deposit_rate_label.config(text=f"存款利率: {self.data.deposit_interest_rate*100:.2f}%")
         self.loan_rate_label.config(text=f"貸款利率: {self.data.loan_interest_rate*100:.2f}%")
         self.asset_label.config(text=f"總資產: ${self.data.total_assets():.2f}")
@@ -504,7 +653,7 @@ class BankGame:
                 if not used_server:
                     # 本地隨機走動回退
                     for stock in self.data.stocks.values():
-                        change_percent = random.gauss(0, self.data.market_volatility)
+                        change_percent = random.gauss(0, self.data.market_volatility * self.data.get_difficulty_multiplier('stock_volatility'))
                         new_price = stock['price'] * (1 + change_percent)
                         new_price = max(10, round(new_price, 2))
                         stock['price'] = new_price
@@ -512,11 +661,24 @@ class BankGame:
                 # 股票更新後，同步更新基金 NAV
                 self.compute_fund_navs()
                 self.schedule_ui_update()
+            # 每 tick 更新 buff 持續時間（每秒）
+            expired_buffs = self.data.update_buffs()
+            for buff in expired_buffs:
+                self.log_transaction(f"{buff['stat']} 加成效果已結束")
+                
             # 每 self.DAY_TICKS 秒執行：利息、配息、礦機、每日結算（視為一天）
             if tick % self.DAY_TICKS == 0:
-                # 每日：生成今日運氣（受魅力微幅影響）
+                # 每日重置
                 try:
                     today = self.data.days + 1
+                    
+                    # 重置消耗品每日購買計數
+                    if hasattr(self.data, 'consumables'):
+                        for item_id, item in self.data.consumables.items():
+                            if 'daily_bought' in item:
+                                item['daily_bought'] = 0
+                    
+                    # 生成今日運氣（受魅力微幅影響）
                     if int(getattr(self.data, 'last_luck_day', -1)) != today:
                         base = random.gauss(50.0, 10.0)
                         adj = 0.1 * (float(getattr(self.data, 'charisma', 50)) - 50.0)
@@ -526,7 +688,7 @@ class BankGame:
                 except Exception as e:
                     self.debug_log(f"luck roll error: {e}")
                 if self.data.balance > 0:
-                    interest = self.data.balance * self.data.deposit_interest_rate
+                    interest = self.data.balance * self.data.deposit_interest_rate * self.data.get_difficulty_multiplier('salary_multiplier')
                     self.data.balance += interest
                     self.log_transaction(f"獲得存款利息 ${interest:.2f}")
                 if self.data.loan > 0:
@@ -555,13 +717,14 @@ class BankGame:
                         comp_mult = float(getattr(self.data, 'companies_catalog', {}).get(comp_name, {}).get('salary_multiplier', 1.0))
                         edu_level = getattr(self.data, 'education_level', '高中')
                         edu_mult = float(getattr(self.data, 'education_multipliers', {}).get(edu_level, 1.0))
-                        # 生產力加成（屬性）：智力/勤奮/魅力/今日運氣 皆提供極小幅加成
+                        # 生產力加成（屬性 + Buff）：智力/勤奮/魅力/今日運氣，皆提供極小幅加成 + productivity buff
                         try:
                             intel = float(getattr(self.data, 'intelligence', 50.0))
                             dili = float(getattr(self.data, 'diligence', 50.0))
                             chrm = float(getattr(self.data, 'charisma', 50.0))
                             luck = float(getattr(self.data, 'luck_today', 50.0))
-                            prod_mult = 1.0 + (intel - 50.0) / 500.0 + (dili - 50.0) / 500.0 + (chrm - 50.0) / 1000.0 + (luck - 50.0) / 1000.0
+                            prod_buff = self.data.get_buff_value('productivity')
+                            prod_mult = 1.0 + (intel - 50.0) / 500.0 + (dili - 50.0) / 500.0 + (chrm - 50.0) / 1000.0 + (luck - 50.0) / 1000.0 + prod_buff
                             prod_mult = max(0.8, min(1.3, prod_mult))
                         except Exception:
                             prod_mult = 1.0
@@ -611,7 +774,7 @@ class BankGame:
                     for exp in list(getattr(self.data, 'expenses', [])):
                         due = int(exp.get('next_due_day', today))
                         if due <= today:
-                            amount = float(exp.get('amount', 0.0))
+                            amount = float(exp.get('amount', 0.0)) * self.data.get_difficulty_multiplier('expense_multiplier')
                             paid = 0.0
                             # 先扣現金，再扣存款
                             if self.data.cash >= amount:

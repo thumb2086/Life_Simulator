@@ -16,23 +16,69 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 # 標題區域
 def create_header_section(root, game):
     frame = ttk.Frame(root)
-    frame.pack(fill=tk.X, pady=10)
-    # 三區塊：左（登入）、中（標題）、右（時間）
-    left = ttk.Frame(frame)
-    center = ttk.Frame(frame)
-    right = ttk.Frame(frame)
+    frame.pack(fill=tk.X, pady=5)
+    
+    # 頂部區域：登入、標題、時間
+    top_frame = ttk.Frame(frame)
+    top_frame.pack(fill=tk.X, pady=(0, 5))
+    
+    # 左：登入區塊
+    left = ttk.Frame(top_frame)
     left.pack(side=tk.LEFT, anchor='w', padx=10)
+    
+    # 中：標題
+    center = ttk.Frame(top_frame)
     center.pack(side=tk.LEFT, expand=True)
+    
+    # 右：時間與遊戲日數
+    right = ttk.Frame(top_frame)
     right.pack(side=tk.RIGHT, anchor='e', padx=10)
-    # 左：登入區塊（移動原本登入區塊內容到這裡）
+    
+    # 左：登入區塊
     game.top_left_frame = left
+    
     # 中：標題
     ttk.Label(center, text="銀行系統", style='Header.TLabel').pack(anchor='center')
+    
     # 右：時間與遊戲日數
     game.time_label = ttk.Label(right, font=FONT)
     game.time_label.pack(anchor='e')
-    game.game_day_label = ttk.Label(right, text="遊戲日數：第 0 天（第 1 月 第 1 天）", font=FONT)
+    game.game_day_label = ttk.Label(right, font=FONT)
     game.game_day_label.pack(anchor='e')
+    
+    # 底部區域：狀態效果和物品欄
+    bottom_frame = ttk.Frame(frame, style='Status.TFrame')
+    bottom_frame.pack(fill=tk.X, pady=(5, 0), padx=5, ipady=5)
+    
+    # 狀態效果標籤
+    game.buffs_label = ttk.Label(
+        bottom_frame, 
+        text="當前沒有活躍效果",
+        font=('Microsoft JhengHei', 9),
+        foreground='#2e7d32',  # 深綠色
+        wraplength=400,
+        justify='left'
+    )
+    game.buffs_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+    
+    # 分隔線
+    ttk.Separator(bottom_frame, orient='vertical').pack(side=tk.LEFT, fill='y', padx=5)
+    
+    # 物品欄標籤
+    game.consumables_label = ttk.Label(
+        bottom_frame, 
+        text="物品欄: 空",
+        font=('Microsoft JhengHei', 9),
+        foreground='#1565c0',  # 深藍色
+        wraplength=300,
+        justify='left'
+    )
+    game.consumables_label.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+    
+    # 添加樣式
+    style = ttk.Style()
+    style.configure('Status.TFrame', background='#f5f5f5')
+    
     return frame
 
 # 主體分頁（每個分頁一個大功能）

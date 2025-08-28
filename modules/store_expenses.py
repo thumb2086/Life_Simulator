@@ -228,24 +228,57 @@ class StoreExpensesManager:
     def update_store_ui(self):
         g = self.game
         try:
-            # 物品清單
-            if isinstance(g.data.store_catalog, dict):
-                goods_rows = [
-                    f"{name} | ${float(item.get('price',0.0)):.2f}"
-                    for name, item in g.data.store_catalog.get('goods', {}).items()
-                ]
-                self._populate_listbox('store_goods_list', goods_rows)
-                # 訂閱清單
-                subscribed = {e.get('name') for e in getattr(g.data, 'expenses', [])}
-                subs_rows = []
-                for name, item in g.data.store_catalog.get('subscriptions', {}).items():
-                    amt = float(item.get('amount', 0.0))
-                    freq = item.get('frequency', 'monthly')
-                    tag = " [已訂閱]" if name in subscribed else ""
-                    subs_rows.append(f"{name} | ${amt:.2f}/{freq}{tag}")
-                self._populate_listbox('store_subs_list', subs_rows)
-            # 物品欄
-            inv_rows = [f"{it}" for it in getattr(g.data, 'inventory', [])]
+            # 初始化 store_catalog 如果不存在
+            if not hasattr(g.data, 'store_catalog') or not isinstance(g.data.store_catalog, dict):
+                g.data.store_catalog = {'goods': {}, 'subscriptions': {}}
+            
+            # 確保 inventory 存在
+            if not hasattr(g.data, 'inventory') or not isinstance(g.data.inventory, dict):
+                g.data.inventory = {}
+            
+            # 確保 consumables 存在
+            if not hasattr(g.data, 'consumables') or not isinstance(g.data.consumables, dict):
+                g.data.consumables = {}
+            
+            # 更新商店物品清單（包含消耗品）
+            goods_rows = []
+            
+            # 添加普通商品
+            for name, item in g.data.store_catalog.get('goods', {}).items():
+                price = float(item.get('price', 0.0))
+                goods_rows.append(f"{name} | ${price:.2f}")
+            
+            # 添加消耗品
+            for item_id, item in getattr(g.data, 'consumables', {}).items():
+                name = item.get('name', '未知物品')
+                price = float(item.get('price', 0.0))
+                daily_left = max(0, item.get('daily_limit', 1) - item.get('daily_bought', 0))
+                goods_rows.append(f"{name} | ${price:.2f} (今日剩餘: {daily_left}/{item.get('daily_limit', 1)})")
+            
+            self._populate_listbox('store_goods_list', goods_rows)
+            
+            # 訂閱清單
+            subscribed = {e.get('name') for e in getattr(g.data, 'expenses', [])}
+            subs_rows = []
+            for name, item in g.data.store_catalog.get('subscriptions', {}).items():
+                amt = float(item.get('amount', 0.0))
+                freq = item.get('frequency', 'monthly')
+                tag = " [已訂閱]" if name in subscribed else ""
+                subs_rows.append(f"{name} | ${amt:.2f}/{freq}{tag}")
+            self._populate_listbox('store_subs_list', subs_rows)
+            
+            # 更新物品欄顯示
+            inv_rows = []
+            for item_id, quantity in getattr(g.data, 'inventory', {}).items():
+                if quantity > 0:
+                    # 如果是消耗品，顯示詳細信息
+                    if item_id in getattr(g.data, 'consumables', {}):
+                        item_name = g.data.consumables[item_id].get('name', item_id)
+                        inv_rows.append(f"{item_name} x{quantity}")
+                    else:
+                        # 舊版物品
+                        inv_rows.append(f"{item_id} x{quantity}")
+            
             self._populate_listbox('inventory_list', inv_rows)
         except Exception:
             pass
@@ -282,15 +315,52 @@ class StoreExpensesManager:
         g = self.game
         try:
             price = float(price)
+            # 檢查是否為消耗品
+            is_consumable = False
+            item_id = None
+            
+            # 在消耗品中查找匹配的項目
+            for item_id, item in g.data.consumables.items():
+                if item['name'] == name:
+                    is_consumable = True
+                    break
+            
+            # 檢查金錢是否足夠
             if g.data.cash < price:
                 g.log_transaction(f"購買失敗（現金不足）：{name} 需要 ${price:.2f}")
                 return False
+                
+            # 檢查每日限購
+            if is_consumable:
+                item = g.data.consumables[item_id]
+                if item['daily_bought'] >= item['daily_limit']:
+                    g.log_transaction(f"購買失敗（今日已達限購數量）：{name}")
+                    return False
+                
+            # 扣款
             g.data.cash -= price
-            inv = getattr(g.data, 'inventory', [])
-            inv.append(name)
-            g.data.inventory = inv
-            g.log_transaction(f"購買物品：{name} 花費 ${price:.2f}")
-            self.update_store_ui()
+            
+            # 處理消耗品
+            if is_consumable:
+                # 更新已購買數量
+                g.data.consumables[item_id]['daily_bought'] += 1
+                # 添加到庫存
+                if item_id not in g.data.inventory:
+                    g.data.inventory[item_id] = 0
+                g.data.inventory[item_id] += 1
+                g.log_transaction(f"購買消耗品：{name} x1 花費 ${price:.2f}")
+            else:
+                # 舊版物品處理（相容性）
+                if not hasattr(g.data, 'inventory'):
+                    g.data.inventory = {}
+                if name not in g.data.inventory:
+                    g.data.inventory[name] = 0
+                g.data.inventory[name] += 1
+                g.log_transaction(f"購買物品：{name} 花費 ${price:.2f}")
+            
+            # 更新UI和存檔
+            if hasattr(self, 'update_store_ui'):
+                self.update_store_ui()
             g.update_display()
             g._pending_save = True
             g.schedule_persist()
