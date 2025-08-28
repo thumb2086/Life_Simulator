@@ -1,7 +1,7 @@
 {
   "reborn_count": 0,
   "balance": 0,
-  "cash": 2501.930580432906,
+  "cash": 2564.000580432906,
   "loan": 0,
   "deposit_interest_rate": 0.05000000000000001,
   "loan_interest_rate": 0.021000000000000005,
@@ -297,7 +297,7 @@
     "BTC": {
       "name": "比特幣",
       "industry": "虛擬貨幣",
-      "price": 55232,
+      "price": 58960,
       "owned": 0,
       "total_cost": 0,
       "history": [
@@ -324,13 +324,14 @@
         45135,
         73577.9,
         92708.15,
-        55232
+        55232,
+        58960
       ],
       "buy_points": [],
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 13,
+      "next_dividend_day": 14,
       "drip": false
     }
   },
@@ -892,19 +893,23 @@
     {
       "timestamp": "2025-08-28 20:34:38",
       "message": "升職成功！目前等級 2，薪資提升 $10.00\\n新日薪 $60.00，下次升職日：第 27 天\\n成功機率：65.0%"
+    },
+    {
+      "timestamp": "2025-08-28 20:37:32",
+      "message": "薪資入帳：毛薪 $65.34 (基礎 $60.00 x 公司1.10 x 學歷1.10 x 生產力0.90)，扣稅 $3.27，實領 $62.07"
     }
   ],
   "last_slot_win": 0,
   "achievements_unlocked": [],
-  "days": 13,
+  "days": 14,
   "happiness": 50,
   "stamina": 50,
   "intelligence": 50,
   "diligence": 50,
   "charisma": 50,
-  "experience": 0,
-  "luck_today": 50,
-  "last_luck_day": -1,
+  "experience": 1.0,
+  "luck_today": 50.0,
+  "last_luck_day": 14,
   "activity_rules": {
     "study": {
       "daily_max": 3,
@@ -1044,6 +1049,13 @@
       "gross": 60.5,
       "tax": 3.03,
       "net": 57.47
+    },
+    {
+      "day": 14,
+      "type": "salary",
+      "gross": 65.34,
+      "tax": 3.27,
+      "net": 62.07
     }
   ],
   "education_level": "大學",
@@ -1412,7 +1424,7 @@
     "科技業": {
       "phase": "normal",
       "strength": 1.0,
-      "duration": 0,
+      "duration": 1,
       "volatility": 0.01
     },
     "服務業": {
@@ -1816,7 +1828,8 @@
         65.7275,
         72.0314,
         33.4096,
-        14.767
+        14.767,
+        13.3643
       ],
       "base_prices": {
         "TSMC": 100,
@@ -1841,6 +1854,7 @@
         23.3359,
         32.2846,
         19.0999,
+        7.3588,
         7.3588
       ],
       "base_prices": {
@@ -1866,6 +1880,7 @@
         21.2307,
         20.5503,
         13.5799,
+        6.4361,
         6.4361
       ],
       "base_prices": {
