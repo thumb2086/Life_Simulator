@@ -72,9 +72,12 @@ def init_db():
     # Seed some stocks if empty
     cur.execute("SELECT COUNT(*) FROM stocks")
     if (cur.fetchone()[0] or 0) == 0:
+        # Match client-side game symbols so prices can be unified across server and client
         symbols = [
-            ("AAPL", 180.0), ("MSFT", 420.0), ("GOOG", 140.0),
-            ("TSLA", 250.0), ("NVDA", 900.0), ("AMZN", 170.0)
+            ("TSMC", 100.0), ("HONHAI", 80.0), ("MTK", 120.0),
+            ("MINING", 60.0), ("FARM", 50.0), ("FOREST", 55.0),
+            ("RETAIL", 70.0), ("RESTAURANT", 65.0), ("TRAVEL", 75.0),
+            ("BTC", 1000000.0)
         ]
         cur.executemany("INSERT INTO stocks(symbol, price) VALUES(?, ?)", symbols)
     conn.commit()
@@ -277,6 +280,28 @@ def stocks_list() -> Dict[str, Any]:
     prices = get_prices(conn)
     conn.close()
     return {"prices": prices}
+
+
+@app.post("/stocks/tick")
+def stocks_tick(x_api_key: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """
+    Advance all stock prices on the server using a random walk.
+    Protected by X-API-Key so clients can coordinate a unified market clock.
+    """
+    require_api_key(x_api_key)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT symbol, price FROM stocks")
+    rows = cur.fetchall()
+    updated: Dict[str, float] = {}
+    for r in rows:
+        sym = r["symbol"]
+        newp = update_price_random_walk(float(r["price"]))
+        cur.execute("UPDATE stocks SET price=? WHERE symbol=?", (newp, sym))
+        updated[sym] = newp
+    conn.commit()
+    conn.close()
+    return {"ok": True, "updated": updated}
 
 
 @app.post("/stocks/buy")

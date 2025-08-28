@@ -43,13 +43,39 @@ class GameData:
         self.last_slot_win = 0
         self.achievements_unlocked = []
         self.days = 0
+        # --- Player attributes ---
+        # 基礎屬性（0~100）：快樂與體力
+        self.happiness = 50
+        self.stamina = 50
         if is_reborn:
             self.reborn_count += 1
         # --- Work Mode (上班模式) 預設欄位 ---
         # 當前工作：name, level, salary_per_day, tax_rate, next_promotion_day
         self.job = None
+        # 任職公司與公司目錄（影響薪資倍率）
+        self.current_company = '一般公司'
+        self.companies_catalog = {
+            '一般公司': {'salary_multiplier': 1.00},
+            '宇宙科技': {'salary_multiplier': 1.10},
+            '幸福生活': {'salary_multiplier': 0.95},
+        }
         # 收入歷史：[{day, type:'salary', gross, tax, net}]
         self.income_history = []
+        # 學歷系統：等級、倍率、升級花費
+        self.education_level = '高中'
+        self.education_levels = ['高中', '大學', '碩士', '博士']
+        self.education_multipliers = {
+            '高中': 1.00,
+            '大學': 1.10,
+            '碩士': 1.25,
+            '博士': 1.40,
+        }
+        # 升級至該目標學歷的費用
+        self.education_upgrade_cost = {
+            '大學': 1000.0,
+            '碩士': 3000.0,
+            '博士': 8000.0,
+        }
         # 職業目錄（可於 UI 選擇），金額單位：遊戲幣/日
         self.jobs_catalog = {
             '實習生': {'base_salary_per_day': 50.0, 'tax_rate': 0.05},
@@ -167,8 +193,40 @@ class GameData:
             # --- 補齊 Work Mode 欄位 ---
             if not hasattr(self, 'job'):
                 self.job = None
+            # 公司選擇與目錄
+            if not hasattr(self, 'companies_catalog'):
+                self.companies_catalog = {
+                    '一般公司': {'salary_multiplier': 1.00},
+                    '宇宙科技': {'salary_multiplier': 1.10},
+                    '幸福生活': {'salary_multiplier': 0.95},
+                }
+            if not hasattr(self, 'current_company'):
+                self.current_company = '一般公司'
             if not hasattr(self, 'income_history'):
                 self.income_history = []
+            # --- 補齊 Player attributes ---
+            if not hasattr(self, 'happiness'):
+                self.happiness = 50
+            if not hasattr(self, 'stamina'):
+                self.stamina = 50
+            # --- 補齊 Education ---
+            if not hasattr(self, 'education_level'):
+                self.education_level = '高中'
+            if not hasattr(self, 'education_levels'):
+                self.education_levels = ['高中', '大學', '碩士', '博士']
+            if not hasattr(self, 'education_multipliers'):
+                self.education_multipliers = {
+                    '高中': 1.00,
+                    '大學': 1.10,
+                    '碩士': 1.25,
+                    '博士': 1.40,
+                }
+            if not hasattr(self, 'education_upgrade_cost'):
+                self.education_upgrade_cost = {
+                    '大學': 1000.0,
+                    '碩士': 3000.0,
+                    '博士': 8000.0,
+                }
             if not hasattr(self, 'jobs_catalog'):
                 self.jobs_catalog = {
                     '實習生': {'base_salary_per_day': 50.0, 'tax_rate': 0.05},

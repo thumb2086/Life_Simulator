@@ -18,7 +18,11 @@ from store_expenses import StoreExpensesManager
 from logger import GameLogger
 from job_manager import JobManager
 from dividend_manager import DividendManager
-from config import UNIFIED_TICK_MS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, PERSIST_DEBOUNCE_MS, STOCK_UPDATE_TICKS, MONTH_DAYS
+from config import UNIFIED_TICK_MS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, PERSIST_DEBOUNCE_MS, STOCK_UPDATE_TICKS, MONTH_DAYS, API_BASE_URL, API_KEY
+try:
+    import requests  # optional for server sync
+except Exception:  # pragma: no cover
+    requests = None
 
 class BankGame:
     def __init__(self, root, data=None):
@@ -215,6 +219,20 @@ class BankGame:
     def log_transaction(self, message):
         return self.logger.log_transaction(message)
 
+    # --- 屬性調整輔助 ---
+    def _clamp_attr(self, val: float, lo: float = 0.0, hi: float = 100.0) -> float:
+        try:
+            return max(lo, min(hi, float(val)))
+        except Exception:
+            return val
+
+    # --- 就業/進修：提供 UI 呼叫的委派方法 ---
+    def select_company(self, name: str):
+        return self.jobs.select_company(name)
+
+    def study_upgrade(self):
+        return self.jobs.study_upgrade()
+
     def start_scheduled_tasks(self):
         self._after_ids = []
         self._after_map = {}
@@ -232,14 +250,44 @@ class BankGame:
             self._unified_timer_tick += 1
             tick = self._unified_timer_tick
             self.debug_log(f"unified_timer tick={tick} start")
-            # 依設定的節拍次數執行股票更新
+            # 依設定的節拍次數執行股票更新（支援伺服器統一價格）
             if tick % STOCK_UPDATE_TICKS == 0:
-                for stock in self.data.stocks.values():
-                    change_percent = random.gauss(0, self.data.market_volatility)
-                    new_price = stock['price'] * (1 + change_percent)
-                    new_price = max(10, round(new_price, 2))
-                    stock['price'] = new_price
-                    stock['history'].append(new_price)
+                used_server = False
+                if API_BASE_URL and requests is not None:
+                    try:
+                        # 先請伺服器推進一次價格（需要 API Key）
+                        tick_url = f"{API_BASE_URL.rstrip('/')}/stocks/tick"
+                        headers = {"X-API-Key": API_KEY or ""}
+                        requests.post(tick_url, headers=headers, timeout=5).raise_for_status()
+                        # 取得最新價格列表
+                        list_url = f"{API_BASE_URL.rstrip('/')}/stocks/list"
+                        resp = requests.get(list_url, timeout=5)
+                        resp.raise_for_status()
+                        prices = resp.json().get('prices', {})
+                        # 套用到本地股票並記錄歷史
+                        for code, stock in self.data.stocks.items():
+                            if code in prices:
+                                p = float(prices[code])
+                                stock['price'] = p
+                                stock['history'].append(p)
+                        # 立即刷新一次標籤與圖表，避免 UI 防抖延遲導致看起來未更新
+                        try:
+                            self.update_stock_status_labels()
+                            # 只更新現有圖表元件，reports.update_charts 已處理可見性
+                            self.reports.update_charts()
+                        except Exception:
+                            pass
+                        used_server = True
+                    except Exception as e:
+                        self.debug_log(f"server price sync failed, fallback local: {e}")
+                if not used_server:
+                    # 本地隨機走動回退
+                    for stock in self.data.stocks.values():
+                        change_percent = random.gauss(0, self.data.market_volatility)
+                        new_price = stock['price'] * (1 + change_percent)
+                        new_price = max(10, round(new_price, 2))
+                        stock['price'] = new_price
+                        stock['history'].append(new_price)
                 # 股票更新後，同步更新基金 NAV
                 self.compute_fund_navs()
                 self.schedule_ui_update()
@@ -269,7 +317,13 @@ class BankGame:
                 try:
                     if getattr(self.data, 'job', None):
                         job = self.data.job
-                        gross = float(job.get('salary_per_day', 0.0))
+                        gross_base = float(job.get('salary_per_day', 0.0))
+                        # 公司與學歷薪資倍率
+                        comp_name = getattr(self.data, 'current_company', '一般公司')
+                        comp_mult = float(getattr(self.data, 'companies_catalog', {}).get(comp_name, {}).get('salary_multiplier', 1.0))
+                        edu_level = getattr(self.data, 'education_level', '高中')
+                        edu_mult = float(getattr(self.data, 'education_multipliers', {}).get(edu_level, 1.0))
+                        gross = round(gross_base * comp_mult * edu_mult, 2)
                         tax_rate = float(job.get('tax_rate', 0.0))
                         tax = max(0.0, round(gross * tax_rate, 2))
                         net = round(gross - tax, 2)
@@ -282,7 +336,9 @@ class BankGame:
                                 'tax': tax,
                                 'net': net,
                             })
-                            self.log_transaction(f"薪資入帳：毛薪 ${gross:.2f}，扣稅 ${tax:.2f}，實領 ${net:.2f}")
+                            self.log_transaction(
+                                f"薪資入帳：毛薪 ${gross:.2f} (基礎 ${gross_base:.2f} x 公司{comp_mult:.2f} x 學歷{edu_mult:.2f})，扣稅 ${tax:.2f}，實領 ${net:.2f}"
+                            )
                 except Exception as e:
                     self.debug_log(f"salary payout error: {e}")
                 # 支出：到期扣款
@@ -311,6 +367,23 @@ class BankGame:
                                     self.data.balance = 0
                             self.data.expense_history.append({'day': today, 'name': exp.get('name','支出'), 'amount': paid})
                             self.log_transaction(f"支出扣款：{exp.get('name','支出')} ${paid:.2f}")
+                            # 訂閱影響：僅在成功全額扣款時生效
+                            try:
+                                name = str(exp.get('name', ''))
+                                if paid >= amount and amount > 0:
+                                    effects = {
+                                        'Netflix 訂閱': {'happiness': 3},
+                                        'Spotify 訂閱': {'happiness': 2},
+                                        '健身房會員': {'stamina': 4, 'happiness': 1},
+                                    }
+                                    eff = effects.get(name)
+                                    if eff is not None:
+                                        if 'happiness' in eff:
+                                            self.data.happiness = self._clamp_attr(self.data.happiness + eff['happiness'])
+                                        if 'stamina' in eff:
+                                            self.data.stamina = self._clamp_attr(self.data.stamina + eff['stamina'])
+                            except Exception as _:
+                                pass
                             # 安排下次到期
                             interval = freq_days.get(exp.get('frequency','daily'), 1)
                             exp['next_due_day'] = today + interval

@@ -11,7 +11,7 @@ BTC_MIN_PRICE = 10000             # floor price to avoid collapsing to zero
 CRYPTO_MINED_PER_HASHRATE = 0.01  # BTC mined per round per khashrate unit
 
 # Stocks / Calendar
-STOCK_UPDATE_TICKS = 15           # how many unified ticks per stock price update
+STOCK_UPDATE_TICKS = 10           # how many unified ticks per stock price update (10s @ 1s tick)
 MONTH_DAYS = 30                   # days per in-game month
 
 # Server API (for leaderboard, optional cloud save)

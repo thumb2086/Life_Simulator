@@ -34,6 +34,11 @@ class StoreExpensesManager:
             g.debug_log(f"_append_expense error: {e}")
             return False
 
+    def _is_essential(self, name: str) -> bool:
+        # 與 ensure_default_expenses 中的預設清單保持一致
+        essentials = {'水電瓦斯', '網路費', '手機費'}
+        return name in essentials
+
     def _refresh_and_persist(self, update_store: bool = False, update_display: bool = False):
         g = self.game
         try:
@@ -301,6 +306,16 @@ class StoreExpensesManager:
             if idx is None:
                 return
             if 0 <= idx < len(g.data.expenses):
+                exp = g.data.expenses[idx]
+                name = exp.get('name', '')
+                # 若為訂閱或基本必需支出，禁止直接刪除
+                subs = set(g.data.store_catalog.get('subscriptions', {}).keys()) if isinstance(g.data.store_catalog, dict) else set()
+                if name in subs:
+                    self._notify("訂閱無法直接刪除，請使用『取消訂閱』功能。")
+                    return
+                if self._is_essential(name):
+                    self._notify("此為必要固定支出，無法刪除！")
+                    return
                 exp = g.data.expenses.pop(idx)
                 g.log_transaction(f"刪除支出：{exp.get('name','支出')} ${float(exp.get('amount',0.0)):.2f}")
                 self._refresh_and_persist()

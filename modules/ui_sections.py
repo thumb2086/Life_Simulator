@@ -309,6 +309,11 @@ def create_main_tabs(root, game):
     job_tax_lbl.grid(row=1, column=1, padx=6, pady=2, sticky='w')
     job_next_lbl = ttk.Label(info_row, text="下次升職日：-", font=FONT)
     job_next_lbl.grid(row=2, column=0, padx=6, pady=2, sticky='w')
+    # 額外顯示：公司與學歷
+    job_company_lbl = ttk.Label(info_row, text="公司：-", font=FONT)
+    job_company_lbl.grid(row=2, column=1, padx=6, pady=2, sticky='w')
+    job_edu_lbl = ttk.Label(info_row, text="學歷：-", font=FONT)
+    job_edu_lbl.grid(row=3, column=0, padx=6, pady=2, sticky='w')
     # 綁定到 game 以便更新
     game.job_labels = {
         'name': job_name_lbl,
@@ -316,6 +321,8 @@ def create_main_tabs(root, game):
         'salary': job_salary_lbl,
         'tax': job_tax_lbl,
         'next': job_next_lbl,
+        'company': job_company_lbl,
+        'education': job_edu_lbl,
     }
     # 選擇工作
     select_row = ttk.Frame(job_frame)
@@ -327,6 +334,15 @@ def create_main_tabs(root, game):
     job_combo.pack(side=tk.LEFT, padx=6)
     ttk.Button(select_row, text="就職", command=game.ui_select_job, width=10).pack(side=tk.LEFT, padx=6)
     ttk.Button(select_row, text="申請升職", command=game.promote_job, width=12).pack(side=tk.LEFT, padx=6)
+    # 公司選擇與進修
+    company_row = ttk.Frame(job_frame)
+    company_row.pack(fill=tk.X, pady=5)
+    ttk.Label(company_row, text="選擇公司：", font=FONT).pack(side=tk.LEFT, padx=6)
+    comp_names = list(getattr(game.data, 'companies_catalog', {}).keys())
+    game.company_select_var = tk.StringVar(value=(comp_names[0] if comp_names else ""))
+    ttk.Combobox(company_row, textvariable=game.company_select_var, values=comp_names, font=FONT, state='readonly', width=16).pack(side=tk.LEFT, padx=6)
+    ttk.Button(company_row, text="加入公司", command=lambda: game.select_company(game.company_select_var.get()), width=10).pack(side=tk.LEFT, padx=6)
+    ttk.Button(company_row, text="進修升學", command=game.study_upgrade, width=10).pack(side=tk.LEFT, padx=12)
     # 支出區塊
     expense_frame = ttk.LabelFrame(life_tab, text="支出", padding="10")
     expense_frame.pack(fill=tk.BOTH, pady=10, padx=10)

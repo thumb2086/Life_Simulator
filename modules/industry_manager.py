@@ -73,6 +73,13 @@ class IndustryManager:
                 # 使用多個延遲呼叫，確保在不同時機都能正確設置焦點
                 for delay in [100, 200, 300]:
                     ind_tab.after(delay, activate_scroll_canvas)
+                # 當分頁顯示時，強制重繪一次圖表與狀態標籤
+                try:
+                    for delay in [120, 220, 320]:
+                        ind_tab.after(delay, self.game.update_charts)
+                    ind_tab.after(150, self.game.update_stock_status_labels)
+                except Exception:
+                    pass
 
         # 綁定分頁事件，使用 add='+' 確保不會覆蓋其他事件處理器
         tab_control.bind('<<NotebookTabChanged>>', on_tab_changed, add='+')
