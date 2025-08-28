@@ -8,6 +8,9 @@ window.App = (function(){
     return await resp.json();
   }
 
+  // 儀表板自動刷新計時器
+  let refreshTimer = null;
+
   function renderTable(tbody, rows, columns){
     tbody.innerHTML = '';
     rows.forEach((r, idx) => {
@@ -72,6 +75,8 @@ window.App = (function(){
       await loadState();
       show(qs('#login-section'), false);
       show(qs('#game-section'), true);
+      // 登入後啟動自動刷新
+      startAutoRefresh();
     }catch(e){
       status.textContent = `登入失敗: ${e.message}`;
     }
@@ -185,8 +190,26 @@ window.App = (function(){
       show(qs('#login-section'), false);
       show(qs('#game-section'), true);
       try{ await loadState(); }catch(e){ /* ignore */ }
+      // 若已登入過，啟動自動刷新
+      startAutoRefresh();
     }
   }
+
+  function startAutoRefresh(refreshMs = 5000){
+    try{ if (refreshTimer) clearInterval(refreshTimer); }catch(e){}
+    refreshTimer = setInterval(() => {
+      // 靜默刷新使用者狀態（持倉/價格）
+      loadState().catch(() => {});
+    }, refreshMs);
+  }
+
+  function stopAutoRefresh(){
+    try{ if (refreshTimer) clearInterval(refreshTimer); }catch(e){}
+    refreshTimer = null;
+  }
+
+  // 清理
+  window.addEventListener('beforeunload', stopAutoRefresh);
 
   async function registerSW(){
     if ('serviceWorker' in navigator) {

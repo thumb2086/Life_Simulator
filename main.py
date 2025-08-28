@@ -8,6 +8,12 @@ MODULE_DIR = os.path.join(BASE_DIR, 'modules')
 if MODULE_DIR not in sys.path:
     sys.path.insert(0, MODULE_DIR)
 
+# 設定 matplotlib 後端為 TkAgg（在其他匯入之前）
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+plt.ioff()  # 關閉互動模式，避免阻塞
+
 from bank_game import BankGame
 from game_data import GameData
 

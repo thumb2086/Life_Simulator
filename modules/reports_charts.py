@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING
+import tkinter as tk
+from tkinter import ttk
 
 if TYPE_CHECKING:
     from bank_game import BankGame
@@ -105,56 +107,128 @@ class ReportsChartsManager:
         t0 = time.perf_counter()
         updated = 0
         skipped = 0
-        for k in g.axes.keys():
+        success_count = 0
+
+        # 強制更新所有圖表元件
+        for k in list(g.axes.keys()):  # 使用 list() 避免字典變更錯誤
             if k not in g.data.stocks:
+                g.debug_log(f"⚠️ 跳過不存在的股票: {k}")
                 continue
+
             stock = g.data.stocks[k]
             try:
                 ax = g.axes[k]
                 canvas = g.canvases[k]
-                # 只在圖表 widget 可見時才重繪
-                try:
-                    if not canvas.get_tk_widget().winfo_viewable():
-                        skipped += 1
-                        continue
-                except Exception:
-                    pass
+
+                # 檢查歷史數據長度
+                history_len = len(stock.get('history', []))
+                if history_len == 0:
+                    # 如果沒有歷史數據，建立初始數據
+                    stock['history'] = [stock.get('price', 100.0)]
+                    history_len = 1
+                    g.debug_log(f"📊 股票 {k} 初始化歷史數據: ${stock['price']}")
+
+                # 確保圖表元件仍然存在
+                if not hasattr(canvas, 'get_tk_widget') or canvas.get_tk_widget() is None:
+                    g.debug_log(f"⚠️ 股票 {k} 圖表元件不存在，跳過更新")
+                    continue
+
+                # 強制清除並重繪圖表
                 ax.clear()
-                # 設定白色背景
                 ax.set_facecolor('white')
-                range_val = g.chart_ranges[k].get()
+
+                # 獲取時間範圍設定
+                range_var = g.chart_ranges.get(k)
+                if range_var is None:
+                    range_var = tk.StringVar(value='近50筆')
+                    g.chart_ranges[k] = range_var
+
+                range_val = range_var.get()
+
+                # 處理歷史數據
                 if range_val == '全部':
                     h = stock['history']
                     offset = 0
                 else:
-                    n = int(''.join(filter(str.isdigit, range_val)))
-                    h = stock['history'][-n:]
-                    offset = len(stock['history']) - len(h)
+                    try:
+                        n = int(''.join(filter(str.isdigit, range_val)))
+                        h = stock['history'][-n:] if len(stock['history']) >= n else stock['history']
+                        offset = len(stock['history']) - len(h)
+                    except (ValueError, IndexError):
+                        h = stock['history']
+                        offset = 0
+
+                # 確保有數據可繪製
+                if not h:
+                    g.debug_log(f"⚠️ 股票 {k} 沒有可繪製的歷史數據")
+                    continue
+
+                # 繪製主要價格線
                 line, = ax.plot(h, marker='', linewidth=2, color=color_map.get(k, 'black'))
+                g.debug_log(f"📈 繪製 {k} 價格線: {len(h)} 個數據點, 當前價格: ${stock.get('price', 'N/A')}")
+
+                # 添加平均買入價線
                 if stock['owned'] > 0 and stock['total_cost'] > 0:
                     avg_price = stock['total_cost'] / stock['owned']
                     ax.axhline(avg_price, color='orange', linestyle='--', linewidth=1.5, label='平均買入價')
+
+                # 添加賣出點
                 filtered_sell = [(i-offset, p) for i, p in stock['sell_points'] if i >= offset and i < offset+len(h)]
                 if filtered_sell:
                     xs, ys = zip(*filtered_sell)
-                else:
-                    xs, ys = [], []
-                ax.scatter(xs, ys, color='purple', marker='v', label='賣出', zorder=5)
+                    ax.scatter(xs, ys, color='purple', marker='v', label='賣出', zorder=5)
+
+                # 添加最大最小點
                 if h:
-                    max_idx, min_idx = h.index(max(h)), h.index(min(h))
-                    ax.scatter([max_idx], [max(h)], color='red', marker='*', s=150, label='最大', edgecolors='black', linewidths=1.5)
-                    ax.scatter([min_idx], [min(h)], color='blue', marker='*', s=150, label='最小', edgecolors='black', linewidths=1.5)
+                    try:
+                        max_idx, min_idx = h.index(max(h)), h.index(min(h))
+                        ax.scatter([max_idx], [max(h)], color='red', marker='*', s=150, label='最大', edgecolors='black', linewidths=1.5)
+                        ax.scatter([min_idx], [min(h)], color='blue', marker='*', s=150, label='最小', edgecolors='black', linewidths=1.5)
+                    except ValueError:
+                        pass  # 如果數據有問題，跳過最大最小點
+
                 ax.set_title(f"{stock['name']} 價格走勢", fontsize=12)
                 ax.set_xlabel('時間', fontsize=10)
                 ax.set_ylabel('價格', fontsize=10)
                 ax.grid(True)
                 ax.legend(loc='lower left')
-                canvas.draw()
-                # 移除每次更新時的滑鼠事件重綁，事件在建立圖表時已綁定
-                updated += 1
+
+                # 使用多種繪製方法確保更新成功
+                try:
+                    # 方法1: 標準繪製
+                    canvas.draw()
+                    g.debug_log(f"✅ {k} 圖表標準繪製成功")
+                except Exception as draw_error:
+                    g.debug_log(f"❌ {k} canvas.draw() 失敗: {draw_error}")
+                    try:
+                        # 方法2: 非阻塞繪製
+                        canvas.draw_idle()
+                        g.debug_log(f"✅ {k} 圖表非阻塞繪製成功")
+                    except Exception as idle_error:
+                        g.debug_log(f"❌ {k} canvas.draw_idle() 失敗: {idle_error}")
+                        try:
+                            # 方法3: 強制重繪
+                            canvas.get_tk_widget().update()
+                            canvas.draw()
+                            g.debug_log(f"✅ {k} 圖表強制重繪成功")
+                        except Exception as force_error:
+                            g.debug_log(f"❌ {k} 強制重繪失敗: {force_error}")
+
+                success_count += 1
+                g.debug_log(f"🎯 {k} 圖表更新成功: 歷史數據長度: {len(h)}, 當前價格: ${stock.get('price', 'N/A')}")
+
             except Exception as e:
-                g.debug_log(f"股票圖表更新失敗: {k}, 錯誤: {e}")
+                g.debug_log(f"💥 {k} 圖表更新失敗: {e}")
+                import traceback
+                g.debug_log(f"詳細錯誤: {traceback.format_exc()}")
+
         dt = (time.perf_counter() - t0) * 1000
+        if success_count > 0:
+            g.debug_log(f"🎉 圖表更新完成: 成功更新 {success_count}/{len(g.axes)} 個圖表, 耗時: {dt:.1f}ms")
+        elif len(g.axes) > 0:
+            g.debug_log(f"❌ 警告：所有 {len(g.axes)} 個圖表更新都失敗了")
+        else:
+            g.debug_log("ℹ️ 沒有圖表需要更新")
     # 屬性視覺化
     def create_attribute_visualization(self):
         """建立屬性趨勢圖表"""

@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from advanced_casino import AdvancedCasinoManager
+from modules.advanced_casino import AdvancedCasinoManager
 
 
 class CasinoGameRequest(BaseModel):
@@ -15,7 +15,7 @@ class CasinoGameRequest(BaseModel):
     username: str
     game_type: str  # slots, blackjack, roulette, baccarat, dice, enhanced_slots
     bet_amount: float
-    **kwargs: Any  # 遊戲特定參數
+    kwargs: Any  # 遊戲特定參數
 
 
 class CasinoManager:

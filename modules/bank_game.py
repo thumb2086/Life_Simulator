@@ -48,6 +48,10 @@ class BankGame:
         self.loan_rate_label = None
         self.theme = ThemeManager(self.root)
         self.slot_machine = SlotMachine(self)
+        # 初始化圖表元件字典
+        self.axes = {}  # 股票圖表軸字典
+        self.canvases = {}  # 股票圖表畫布字典
+        self.chart_ranges = {}  # 圖表範圍設定字典
         # 新增：成就管理器初始化時傳入已解鎖 key
         self.achievements = AchievementsManager(self.data, getattr(self.data, 'achievements_unlocked', []))
         self.data.achievements_manager = self.achievements
@@ -663,33 +667,109 @@ class BankGame:
             # 依設定的節拍次數執行股票更新（支援伺服器統一價格）
             if tick % STOCK_UPDATE_TICKS == 0:
                 used_server = False
+                server_error_logged = False
                 if API_BASE_URL and requests is not None:
                     try:
-                        # 先請伺服器推進一次價格（需要 API Key）
+                        self.debug_log("🔄 嘗試連接到伺服器進行價格更新...")
+
+                        # 步驟1: 請求伺服器推進價格（需要 API Key）
                         tick_url = f"{API_BASE_URL.rstrip('/')}/stocks/tick"
                         headers = {"X-API-Key": API_KEY or ""}
-                        requests.post(tick_url, headers=headers, timeout=5).raise_for_status()
-                        # 取得最新價格列表
-                        list_url = f"{API_BASE_URL.rstrip('/')}/stocks/list"
-                        resp = requests.get(list_url, timeout=5)
-                        resp.raise_for_status()
-                        prices = resp.json().get('prices', {})
-                        # 套用到本地股票並記錄歷史
-                        for code, stock in self.data.stocks.items():
-                            if code in prices:
-                                p = float(prices[code])
-                                stock['price'] = p
-                                stock['history'].append(p)
-                        # 立即刷新一次標籤與圖表，避免 UI 防抖延遲導致看起來未更新
-                        try:
-                            self.update_stock_status_labels()
-                            # 只更新現有圖表元件，reports.update_charts 已處理可見性
-                            self.reports.update_charts()
-                        except Exception:
-                            pass
-                        used_server = True
+                        self.debug_log(f"📡 發送請求到: {tick_url}")
+
+                        tick_response = requests.post(tick_url, headers=headers, timeout=3)
+                        self.debug_log(f"📥 Tick響應狀態碼: {tick_response.status_code}")
+
+                        if tick_response.status_code == 200:
+                            try:
+                                tick_data = tick_response.json()
+                                self.debug_log(f"✅ 伺服器價格更新成功: {len(tick_data.get('updated', {}))} 支股票")
+
+                                # 步驟2: 取得最新價格列表
+                                list_url = f"{API_BASE_URL.rstrip('/')}/stocks/list"
+                                self.debug_log(f"📡 獲取價格列表: {list_url}")
+
+                                list_response = requests.get(list_url, timeout=3)
+                                self.debug_log(f"📥 List響應狀態碼: {list_response.status_code}")
+
+                                if list_response.status_code == 200:
+                                    try:
+                                        prices_data = list_response.json()
+                                        server_prices = prices_data.get('prices', {})
+
+                                        self.debug_log(f"💰 收到價格數據: {len(server_prices)} 支股票")
+
+                                        # 步驟3: 同步本地股票價格
+                                        updated_count = 0
+                                        history_updated = 0
+
+                                        for code, stock in self.data.stocks.items():
+                                            if code in server_prices:
+                                                old_price = stock['price']
+                                                new_price = float(server_prices[code])
+
+                                                # 總是更新價格，即使沒有變化（確保同步）
+                                                stock['price'] = new_price
+
+                                                # 只在價格有顯著變化時更新歷史記錄
+                                                if abs(new_price - old_price) > 0.001:
+                                                    stock['history'].append(new_price)
+                                                    # 限制歷史記錄長度，避免記憶體溢出
+                                                    if len(stock['history']) > 1000:
+                                                        stock['history'] = stock['history'][-500:]
+                                                    history_updated += 1
+
+                                                updated_count += 1
+
+                                        self.debug_log(f"✅ 伺服器同步完成: {updated_count} 支股票已更新, {history_updated} 支有價格變化")
+
+                                        # 強制更新UI
+                                        try:
+                                            self.update_stock_status_labels()
+                                            self.reports.update_charts()
+                                            self.debug_log("🎨 UI更新完成")
+                                        except Exception as ui_error:
+                                            self.debug_log(f"❌ UI更新失敗: {ui_error}")
+
+                                        used_server = True
+
+                                    except ValueError as json_error:
+                                        self.debug_log(f"❌ JSON解析錯誤 (價格列表): {json_error}")
+                                    except Exception as parse_error:
+                                        self.debug_log(f"❌ 價格數據處理錯誤: {parse_error}")
+                                else:
+                                    self.debug_log(f"❌ 取得伺服器價格列表失敗: HTTP {list_response.status_code}, 響應: {list_response.text[:200]}")
+
+                            except ValueError as json_error:
+                                self.debug_log(f"❌ JSON解析錯誤 (tick): {json_error}")
+                            except Exception as tick_error:
+                                self.debug_log(f"❌ Tick數據處理錯誤: {tick_error}")
+                        else:
+                            self.debug_log(f"❌ 伺服器價格更新失敗: HTTP {tick_response.status_code}, 響應: {tick_response.text[:200]}")
+
+                        # 如果伺服器連接失敗，只記錄一次錯誤
+                        if not used_server and not server_error_logged:
+                            self.debug_log("⚠️ 伺服器連接失敗，使用本地價格更新")
+                            server_error_logged = True
+
+                    except requests.exceptions.Timeout as timeout_error:
+                        if not server_error_logged:
+                            self.debug_log(f"⏰ 網路請求超時: {timeout_error}")
+                            server_error_logged = True
+                    except requests.exceptions.ConnectionError as conn_error:
+                        if not server_error_logged:
+                            self.debug_log(f"🔌 連線錯誤: {conn_error}")
+                            server_error_logged = True
+                    except requests.exceptions.RequestException as req_error:
+                        if not server_error_logged:
+                            self.debug_log(f"🌐 網路請求錯誤: {req_error}")
+                            server_error_logged = True
                     except Exception as e:
-                        self.debug_log(f"server price sync failed, fallback local: {e}")
+                        if not server_error_logged:
+                            self.debug_log(f"💥 伺服器同步未知錯誤: {e}")
+                            import traceback
+                            self.debug_log(f"詳細錯誤: {traceback.format_exc()}")
+                            server_error_logged = True
                 if not used_server:
                     # 本地隨機走動回退
                     for stock in self.data.stocks.values():
@@ -701,6 +781,13 @@ class BankGame:
                 # 股票更新後，同步更新基金 NAV
                 self.compute_fund_navs()
                 self.schedule_ui_update()
+            # 每2秒更新一次圖表（更頻繁的圖表更新）
+            elif tick % 2 == 0:
+                try:
+                    # 定期更新圖表，即使價格沒有變化
+                    self.reports.update_charts()
+                except Exception:
+                    pass
             # 每 tick 更新 buff 持續時間（每秒）
             expired_buffs = self.data.update_buffs()
             for buff in expired_buffs:

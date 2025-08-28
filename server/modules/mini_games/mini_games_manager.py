@@ -13,7 +13,7 @@ from enum import Enum
 
 from game_data import GameData
 from unified_data_manager import UnifiedDataManager
-from advanced_casino import AdvancedCasinoManager
+from modules.advanced_casino import AdvancedCasinoManager
 
 
 class MiniGameType(Enum):
