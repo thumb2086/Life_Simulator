@@ -2,12 +2,14 @@ from ui_sections import create_header_section, create_main_tabs
 from theme_manager import ThemeManager
 from game_data import GameData
 from slot_machine import SlotMachine
+from advanced_casino import AdvancedCasinoManager, RouletteBetType
+from unified_data_manager import UnifiedDataManager
 from achievements import AchievementsManager
 from consumables_ui import ConsumablesUI
 from events import EventManager
 from leaderboard import Leaderboard
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from datetime import datetime
 import time
 import random
@@ -29,6 +31,13 @@ from seasonal_system import SeasonalSystem
 from education_career_system import EducationCareerSystem
 from health_system import HealthSystem
 from investment_portfolio_manager import InvestmentPortfolioManager
+
+MODULE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.abspath(os.path.join(MODULE_DIR, '..', 'data'))
+os.makedirs(DATA_DIR, exist_ok=True)
+CASINO_DB_PATH = os.path.join(DATA_DIR, 'casino.db')
+CASINO_SAVES_DIR = os.path.join(DATA_DIR, 'casino_saves')
+os.makedirs(CASINO_SAVES_DIR, exist_ok=True)
 try:
     import requests  # optional for server sync
 except Exception:  # pragma: no cover
@@ -47,7 +56,15 @@ class BankGame:
         self.deposit_rate_label = None
         self.loan_rate_label = None
         self.theme = ThemeManager(self.root)
+        self.data_manager = UnifiedDataManager(db_path=CASINO_DB_PATH, json_save_dir=CASINO_SAVES_DIR)
         self.slot_machine = SlotMachine(self)
+        self.casino_manager = AdvancedCasinoManager(self.data_manager, db_path=CASINO_DB_PATH)
+        self.casino_ui = None
+        self.casino_log_widget = None
+        self.casino_vip_label = None
+        self.casino_stats_label = None
+        self.casino_jackpot_tree = None
+        self.casino_status_var = tk.StringVar(self.root, value="尚未開始賭局")
         # 初始化圖表元件字典
         self.axes = {}  # 股票圖表軸字典
         self.canvases = {}  # 股票圖表畫布字典
@@ -431,6 +448,234 @@ class BankGame:
             dt = (time.perf_counter() - t0) * 1000
             self.debug_log(f"task '{name}' end, {dt:.1f} ms")
 
+    def _require_casino_login(self) -> bool:
+        if not getattr(self, 'username', None):
+            messagebox.showinfo("賭場", "請先登入帳號才能使用賭場功能！")
+            return False
+        return True
+
+    def append_casino_log(self, message: str):
+        widget = getattr(self, 'casino_log_widget', None)
+        if not widget:
+            return
+        try:
+            widget.config(state='normal')
+            widget.insert('end', f"{message}\n")
+            widget.see('end')
+            widget.config(state='disabled')
+        except Exception as e:
+            self.debug_log(f"append_casino_log error: {e}")
+
+    def open_blackjack_window(self):
+        if not self._require_casino_login():
+            return
+        try:
+            from blackjack_game import BlackjackWindow
+            BlackjackWindow(self.root, self)
+            self.casino_status_var.set("已開啟 21 點遊戲視窗，祝你好運！")
+        except Exception as e:
+            messagebox.showerror("21點錯誤", f"無法開啟 21 點：{e}")
+            self.debug_log(f"open_blackjack_window error: {e}")
+
+    def play_roulette_prompt(self):
+        if not self._require_casino_login():
+            return
+        try:
+            amount = simpledialog.askfloat("輪盤下注", "請輸入下注金額：", minvalue=1.0, parent=self.root)
+            if amount is None:
+                return
+            bet_choice = simpledialog.askstring(
+                "輪盤下注",
+                "選擇賭注類型（red/black/even/odd/low/high）：",
+                initialvalue="red",
+                parent=self.root
+            )
+            if bet_choice is None:
+                return
+            bet_choice = bet_choice.strip().lower()
+            bet_map = {
+                'red': RouletteBetType.RED,
+                'black': RouletteBetType.BLACK,
+                'even': RouletteBetType.EVEN,
+                'odd': RouletteBetType.ODD,
+                'low': RouletteBetType.LOW,
+                'high': RouletteBetType.HIGH,
+            }
+            bet_type = bet_map.get(bet_choice)
+            if not bet_type:
+                messagebox.showwarning("輪盤下注", "不支援的賭注類型。")
+                return
+            if self.data.cash < amount:
+                messagebox.showwarning("輪盤下注", "現金不足，請調整下注金額。")
+                return
+            self.data.cash -= amount
+            result = self.casino_manager.play_roulette(self.username, amount, bet_type)
+            payout = 0.0
+            if result['result'] == 'win':
+                payout = amount + result['winnings']
+                self.data.cash += payout
+            elif result['result'] == 'push':
+                payout = amount
+                self.data.cash += payout
+            net_gain = payout - amount
+            winning_number = result.get('winning_number')
+            winning_color = result.get('winning_color')
+            outcome = '贏' if net_gain > 0 else ('平手' if result['result'] == 'push' else '輸')
+            summary = f"輪盤開出 {winning_number} ({winning_color})，{outcome}，淨變動 ${net_gain:+.2f}"
+            self.casino_status_var.set(summary)
+            self.append_casino_log(summary)
+            self.log_transaction(f"輪盤下注 ${amount:.2f}，{summary}")
+            self.update_display()
+        except Exception as e:
+            messagebox.showerror("輪盤錯誤", f"發生錯誤：{e}")
+            self.debug_log(f"play_roulette_prompt error: {e}")
+
+    def play_baccarat_prompt(self):
+        if not self._require_casino_login():
+            return
+        try:
+            amount = simpledialog.askfloat("百家樂下注", "請輸入下注金額：", minvalue=1.0, parent=self.root)
+            if amount is None:
+                return
+            bet_choice = simpledialog.askstring(
+                "百家樂下注",
+                "選擇賭注類型（player/banker/tie）：",
+                initialvalue="player",
+                parent=self.root
+            )
+            if bet_choice is None:
+                return
+            bet_choice = bet_choice.strip().lower()
+            if bet_choice not in {'player', 'banker', 'tie'}:
+                messagebox.showwarning("百家樂下注", "不支援的賭注類型。")
+                return
+            if self.data.cash < amount:
+                messagebox.showwarning("百家樂下注", "現金不足，請調整下注金額。")
+                return
+            self.data.cash -= amount
+            result = self.casino_manager.play_baccarat(self.username, amount, bet_choice)
+            payout = 0.0
+            if result['result'] == 'win':
+                payout = amount + result['winnings']
+                self.data.cash += payout
+            net_gain = payout - amount
+            winner = result.get('winner')
+            outcome = '贏' if result['result'] == 'win' else '輸'
+            summary = f"百家樂開出 {winner}，{outcome}，淨變動 ${net_gain:+.2f}"
+            self.casino_status_var.set(summary)
+            self.append_casino_log(summary)
+            self.log_transaction(f"百家樂下注 ${amount:.2f}，{summary}")
+            self.update_display()
+        except Exception as e:
+            messagebox.showerror("百家樂錯誤", f"發生錯誤：{e}")
+            self.debug_log(f"play_baccarat_prompt error: {e}")
+
+    def play_dice_prompt(self):
+        if not self._require_casino_login():
+            return
+        try:
+            amount = simpledialog.askfloat("骰子遊戲下注", "請輸入下注金額：", minvalue=1.0, parent=self.root)
+            if amount is None:
+                return
+            if self.data.cash < amount:
+                messagebox.showwarning("骰子遊戲下注", "現金不足，請調整下注金額。")
+                return
+            game_type = simpledialog.askstring(
+                "骰子遊戲",
+                "選擇遊戲類型（seven_eleven/over_under/craps）：",
+                initialvalue="seven_eleven",
+                parent=self.root
+            )
+            if game_type is None:
+                return
+            game_type = game_type.strip().lower()
+            if game_type not in {'seven_eleven', 'over_under', 'craps'}:
+                messagebox.showwarning("骰子遊戲", "不支援的遊戲類型。")
+                return
+            prediction = None
+            if game_type == 'over_under':
+                prediction = simpledialog.askstring("大小預測", "輸入 over 或 under：", initialvalue="over", parent=self.root)
+                if prediction is None:
+                    return
+                prediction = prediction.strip().lower()
+                if prediction not in {'over', 'under'}:
+                    messagebox.showwarning("大小預測", "預測必須為 over 或 under。")
+                    return
+            elif game_type == 'craps':
+                prediction_value = simpledialog.askinteger("Craps 預測", "輸入預測點數 (2-12)：", minvalue=2, maxvalue=12, parent=self.root)
+                if prediction_value is None:
+                    return
+                prediction = prediction_value
+            self.data.cash -= amount
+            result = self.casino_manager.play_dice_game(self.username, amount, game_type, prediction)
+            payout = 0.0
+            if result['result'] == 'win':
+                payout = amount + result['winnings']
+                self.data.cash += payout
+            elif result['result'] == 'push':
+                payout = amount
+                self.data.cash += payout
+            net_gain = payout - amount
+            total = result.get('total')
+            outcome = '贏' if net_gain > 0 else ('平手' if result['result'] == 'push' else '輸')
+            summary = f"骰子遊戲 ({game_type})：點數 {total}，{outcome}，淨變動 ${net_gain:+.2f}"
+            self.casino_status_var.set(summary)
+            self.append_casino_log(summary)
+            self.log_transaction(f"骰子遊戲下注 ${amount:.2f}，{summary}")
+            self.update_display()
+        except Exception as e:
+            messagebox.showerror("骰子遊戲錯誤", f"發生錯誤：{e}")
+            self.debug_log(f"play_dice_prompt error: {e}")
+
+    def update_casino_ui(self):
+        try:
+            vip_label = getattr(self, 'casino_vip_label', None)
+            stats_label = getattr(self, 'casino_stats_label', None)
+            jackpot_tree = getattr(self, 'casino_jackpot_tree', None)
+            username = getattr(self, 'username', None)
+            if vip_label:
+                if not username:
+                    vip_label.config(text="請登入以查看 VIP 狀態")
+                else:
+                    vip_level = self.casino_manager.get_vip_level(username)
+                    perks = self.casino_manager.get_vip_perks(vip_level)
+                    vip_label.config(
+                        text=(
+                            f"VIP 等級：{vip_level.name.title()}｜紅利 {perks.get('bonus_rate', 0)*100:.1f}%｜"
+                            f"最高下注倍率 x{perks.get('max_bet_multiplier', 1.0):.1f}"
+                        )
+                    )
+            if stats_label:
+                if not username:
+                    stats_label.config(text="尚無紀錄")
+                else:
+                    stats = self.casino_manager.get_casino_stats(username)
+                    if stats:
+                        stats_label.config(
+                            text=(
+                                f"總局數：{stats.get('total_games', 0)}｜總下注：${stats.get('total_bet', 0):.0f}｜"
+                                f"總贏金：${stats.get('total_win', 0):.0f}｜最佳單局：${stats.get('best_win', 0):.0f}"
+                            )
+                        )
+                    else:
+                        stats_label.config(text="尚無紀錄")
+            if jackpot_tree:
+                for child in jackpot_tree.get_children():
+                    jackpot_tree.delete(child)
+                jackpots = self.casino_manager.get_progressive_jackpots()
+                for info in jackpots.values():
+                    jackpot_tree.insert(
+                        '',
+                        'end',
+                        values=(
+                            info.get('name', '獎池'),
+                            f"${info.get('current_amount', 0):,.0f}",
+                            f"${info.get('min_bet', 0):,.0f}"
+                        )
+                    )
+        except Exception as e:
+            self.debug_log(f"update_casino_ui error: {e}")
+
     def update_display(self):
         self.balance_label.config(text=f"銀行餘額: ${self.data.balance:.2f}")
         self.cash_label.config(text=f"現金: ${self.data.cash:.2f}")
@@ -469,6 +714,7 @@ class BankGame:
         # 更新遊戲日數顯示
         self.update_game_day_label()
         self.update_stock_status_labels()
+        self.update_casino_ui()
         # 屬性分頁標籤更新（若存在）
         try:
             if hasattr(self, 'attr_labels') and isinstance(self.attr_labels, dict):

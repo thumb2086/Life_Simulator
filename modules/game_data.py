@@ -498,6 +498,47 @@ class GameData:
                 'base_prices': base_prices,
             }
 
+        # 定投預設結構
+        self.dca_stocks = {}
+        self.dca_funds = {}
+
+        # 期貨市場設定
+        self.futures_catalog = {
+            'TXF': {
+                'name': '台指期',
+                'multiplier': 200,
+                'initial_margin': 50000.0,
+                'maintenance_margin': 35000.0,
+                'volatility': 0.015,
+                'base_price': 15500.0
+            },
+            'GCF': {
+                'name': '黃金期貨',
+                'multiplier': 100,
+                'initial_margin': 60000.0,
+                'maintenance_margin': 42000.0,
+                'volatility': 0.012,
+                'base_price': 1900.0
+            },
+            'CLF': {
+                'name': '原油期貨',
+                'multiplier': 1000,
+                'initial_margin': 45000.0,
+                'maintenance_margin': 32000.0,
+                'volatility': 0.018,
+                'base_price': 75.0
+            }
+        }
+        self.futures_market = {
+            code: {
+                'price': cfg['base_price'],
+                'history': [cfg['base_price']]
+            }
+            for code, cfg in self.futures_catalog.items()
+        }
+        self.futures_positions = []
+        self.futures_realized_pnl = 0.0
+
     def save(self, file_path, show_error=None):
         """儲存遊戲資料到檔案"""
         try:
@@ -556,6 +597,21 @@ class GameData:
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             self.__dict__.update(data)
+            # --- 修復過舊存檔缺少 stocks 導致 "NoneType is not iterable" ---
+            if not isinstance(getattr(self, 'stocks', None), dict) or not self.stocks:
+                logging.warning("存檔缺少有效的股票資料，將重建預設股票表")
+                self.stocks = {
+                    'TSMC': {'name': '台積電', 'industry': '科技業', 'price': 100, 'owned': 0, 'total_cost': 0, 'history': [100], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'HONHAI': {'name': '鴻海', 'industry': '科技業', 'price': 80, 'owned': 0, 'total_cost': 0, 'history': [80], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'MTK': {'name': '聯發科', 'industry': '科技業', 'price': 120, 'owned': 0, 'total_cost': 0, 'history': [120], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'MINING': {'name': '挖礦公司', 'industry': '一級產業', 'price': 60, 'owned': 0, 'total_cost': 0, 'history': [60], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 2, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'FARM': {'name': '農業公司', 'industry': '一級產業', 'price': 50, 'owned': 0, 'total_cost': 0, 'history': [50], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.5, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'FOREST': {'name': '林業公司', 'industry': '一級產業', 'price': 55, 'owned': 0, 'total_cost': 0, 'history': [55], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.2, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'RETAIL': {'name': '零售連鎖', 'industry': '服務業', 'price': 70, 'owned': 0, 'total_cost': 0, 'history': [70], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'RESTAURANT': {'name': '餐飲集團', 'industry': '服務業', 'price': 65, 'owned': 0, 'total_cost': 0, 'history': [65], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.8, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'TRAVEL': {'name': '旅遊公司', 'industry': '服務業', 'price': 75, 'owned': 0, 'total_cost': 0, 'history': [75], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.9, 'dividend_interval': 30, 'next_dividend_day': 30},
+                    'BTC': {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
+                }
             # 自動補齊新版欄位
             if not hasattr(self, 'reborn_count'):
                 self.reborn_count = 0
@@ -567,6 +623,27 @@ class GameData:
                 self.btc_hashrate = 0.0
             if 'BTC' not in self.stocks:
                 self.stocks['BTC'] = {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
+
+            # 補齊定投/期貨相關欄位
+            if not hasattr(self, 'dca_stocks') or not isinstance(self.dca_stocks, dict):
+                self.dca_stocks = {}
+            if not hasattr(self, 'dca_funds') or not isinstance(self.dca_funds, dict):
+                self.dca_funds = {}
+            if not hasattr(self, 'futures_catalog') or not isinstance(self.futures_catalog, dict):
+                from copy import deepcopy
+                self.futures_catalog = deepcopy(GameData().futures_catalog)
+            if not hasattr(self, 'futures_market') or not isinstance(self.futures_market, dict):
+                self.futures_market = {
+                    code: {
+                        'price': cfg['base_price'],
+                        'history': [cfg['base_price']]
+                    }
+                    for code, cfg in self.futures_catalog.items()
+                }
+            if not hasattr(self, 'futures_positions') or not isinstance(self.futures_positions, list):
+                self.futures_positions = []
+            if not hasattr(self, 'futures_realized_pnl'):
+                self.futures_realized_pnl = 0.0
             
             # BUG FIX: industry_map 將服務業公司的產業別錯誤地設為其名稱，已修正。
             industry_map = {

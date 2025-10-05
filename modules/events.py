@@ -62,6 +62,8 @@ class EventManager:
             GameEvent('經濟數據公布', '重要經濟數據公布，市場反應激烈！', self.economic_data_release, '隨機方向影響所有股票±5-15%'),
         ])
 
+        return events
+
     def trigger_random_event(self):
         event = random.choice(self.events)
         effect_result = event.effect_func()

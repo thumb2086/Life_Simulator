@@ -103,7 +103,7 @@ class AdvancedCasinoManager:
     提供完整的賭場體驗，包括多樣化遊戲、VIP系統和累積獎池
     """
 
-    def __init__(self, data_manager: UnifiedDataManager, db_path: str = None):
+    def __init__(self, data_manager: UnifiedDataManager | None = None, db_path: str = None):
         self.data_manager = data_manager
         self.db_path = db_path
 
@@ -376,6 +376,9 @@ class AdvancedCasinoManager:
             return self.vip_members[username].level
 
         # 計算VIP等級
+        if not self.data_manager:
+            return VIPLevel.BRONZE
+
         game_data = self.data_manager.load_game_data(username, 'default', 'web')
         if not game_data:
             return VIPLevel.BRONZE

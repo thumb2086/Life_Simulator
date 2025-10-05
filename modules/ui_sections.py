@@ -705,20 +705,68 @@ def create_main_tabs(root, game):
         game.update_store_ui()
     except Exception:
         pass
-    # --- 拉霸機分頁（只保留一台） ---
-    slot_tab = ttk.Frame(tab_control)
-    tab_control.add(slot_tab, text="🎰 拉霸機")
+    # --- 賭場分頁（整合各種玩法） ---
+    casino_tab = ttk.Frame(tab_control)
+    tab_control.add(casino_tab, text="🎰 賭場")
+    casino_wrap = ttk.Frame(casino_tab)
+    casino_wrap.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+    info_frame = ttk.LabelFrame(casino_wrap, text="玩家資訊", padding="10")
+    info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 12))
+
+    ttk.Label(info_frame, text="狀態：", font=FONT).pack(anchor='w')
+    status_label = ttk.Label(info_frame, textvariable=game.casino_status_var, font=("Microsoft JhengHei", 11), wraplength=260)
+    status_label.pack(anchor='w', pady=(0, 8))
+
+    ttk.Label(info_frame, text="VIP 與紅利", font=FONT).pack(anchor='w')
+    game.casino_vip_label = ttk.Label(info_frame, text="請登入以查看 VIP 狀態", font=("Microsoft JhengHei", 10), wraplength=260)
+    game.casino_vip_label.pack(anchor='w', pady=(0, 8))
+
+    ttk.Label(info_frame, text="賭場統計", font=FONT).pack(anchor='w')
+    game.casino_stats_label = ttk.Label(info_frame, text="尚無紀錄", font=("Microsoft JhengHei", 10), wraplength=260)
+    game.casino_stats_label.pack(anchor='w', pady=(0, 8))
+
+    jackpot_frame = ttk.LabelFrame(info_frame, text="累積獎池", padding="6")
+    jackpot_frame.pack(fill=tk.BOTH, expand=True, pady=(4, 8))
+    columns = ("name", "amount", "min_bet")
+    tree = ttk.Treeview(jackpot_frame, columns=columns, show='headings', height=5)
+    tree.heading('name', text='獎池')
+    tree.heading('amount', text='當前金額')
+    tree.heading('min_bet', text='最低下注')
+    tree.column('name', width=110, anchor='center')
+    tree.column('amount', width=110, anchor='e')
+    tree.column('min_bet', width=100, anchor='e')
+    tree.pack(fill=tk.BOTH, expand=True)
+    game.casino_jackpot_tree = tree
+    ttk.Button(jackpot_frame, text="刷新獎池資訊", command=game.update_casino_ui).pack(pady=4)
+
+    log_frame = ttk.LabelFrame(info_frame, text="賭局紀錄", padding="6")
+    log_frame.pack(fill=tk.BOTH, expand=True)
+    log_text = tk.Text(log_frame, height=10, state='disabled', font=("Microsoft JhengHei", 10))
+    log_text.pack(fill=tk.BOTH, expand=True)
+    game.casino_log_widget = log_text
+
+    games_frame = ttk.LabelFrame(casino_wrap, text="賭場遊戲", padding="10")
+    games_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    slot_frame = ttk.LabelFrame(games_frame, text="拉霸機", padding="10")
+    slot_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
     game.slot_machines = []
-    sub = ttk.LabelFrame(slot_tab, text=f"拉霸機台 1", padding="10")
-    sub.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
-    sm = game.slot_machine.create_ui(sub)
-    game.slot_machines.append(sm)
-    # --- 21點（Blackjack）入口 ---
-    def open_blackjack():
-        # 這裡之後會呼叫 blackjack 遊戲視窗
-        import tkinter.messagebox as messagebox
-        messagebox.showinfo("21點（Blackjack）", "21點遊戲開發中...")
-    ttk.Button(slot_tab, text="玩 21點（Blackjack）", command=open_blackjack).pack(side=tk.LEFT, padx=20, pady=20)
+    slot_ui = game.slot_machine.create_ui(slot_frame)
+    game.slot_machines.append(slot_ui)
+
+    button_frame = ttk.Frame(games_frame)
+    button_frame.pack(fill=tk.X, pady=4)
+    ttk.Button(button_frame, text="啟動 21點 (Blackjack)", command=game.open_blackjack_window).pack(fill=tk.X, pady=3)
+    ttk.Button(button_frame, text="輪盤下注 (Roulette)", command=game.play_roulette_prompt).pack(fill=tk.X, pady=3)
+    ttk.Button(button_frame, text="百家樂下注 (Baccarat)", command=game.play_baccarat_prompt).pack(fill=tk.X, pady=3)
+    ttk.Button(button_frame, text="骰子遊戲 (Dice)", command=game.play_dice_prompt).pack(fill=tk.X, pady=3)
+    ttk.Button(button_frame, text="刷新玩家資訊", command=game.update_casino_ui).pack(fill=tk.X, pady=(8, 0))
+
+    try:
+        game.update_casino_ui()
+    except Exception:
+        pass
     # --- 成就分頁 ---
     ach_tab = ttk.Frame(tab_control)
     tab_control.add(ach_tab, text="🏅 成就")
