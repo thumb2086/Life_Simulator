@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/styles.css" />
+  <title>Life_Simulator - 伺服器升級</title>
+</head>
+<body>
+  <header>
+    <h1>伺服器升級</h1>
+    <nav>
+      <a href="/static/leaderboard.html">排行榜</a>
+      <a href="/static/dashboard.html">儀表板</a>
+      <a href="/static/server_upgrade.html" class="active">伺服器升級</a>
+    </nav>
+  </header>
+  <main>
+    <section id="login-section">
+      <h2>登入</h2>
+      <div class="row">
+        <label for="username">使用者名稱</label>
+        <input id="username" placeholder="輸入使用者名稱" />
+      </div>
+      <button id="btn-login">登入</button>
+      <div id="login-status" class="muted"></div>
+    </section>
+
+    <section id="server-section" style="display:none;">
+      <h2>伺服器方案</h2>
+      <div class="grid" id="server-plans">
+        <!-- Server plans will be dynamically loaded here -->
+      </div>
+    </section>
+  </main>
+  <footer>
+    <span id="status">就緒</span>
+  </footer>
+  <script src="/static/app.js"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.App.initServerUpgradePage();
+    });
+  </script>
+</body>
+</html>

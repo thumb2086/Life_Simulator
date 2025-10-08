@@ -8,15 +8,14 @@ import os
 import sys
 import json
 import time
+import sqlite3
 from datetime import datetime
 
 # 確保可以匯入模組
 current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-modules_dir = os.path.join(parent_dir, 'modules')
-
-sys.path.insert(0, parent_dir)  # 加入專案根目錄
-sys.path.insert(0, modules_dir)  # 加入模組目錄
+sys.path.insert(0, current_dir)
+modules_dir = os.path.join(current_dir, 'modules')
+sys.path.insert(0, modules_dir)
 
 # 匯入模組
 try:
@@ -35,8 +34,8 @@ class IntegrationTestSuite:
 
     def __init__(self):
         self.test_results = []
-        self.db_path = os.path.join(os.path.dirname(__file__), '..', 'server', 'test_app.db')
-        self.json_save_dir = os.path.join(os.path.dirname(__file__), '..', 'test_saves')
+        self.db_path = os.path.join('server', 'test_app.db')
+        self.json_save_dir = os.path.join('test_saves')
 
         # 確保測試目錄存在
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -271,9 +270,135 @@ class IntegrationTestSuite:
             self.log_test_result("Data Integrity", False, f"測試異常: {e}")
             return False
 
+    def test_server_upgrade(self):
+        """測試伺服器升級功能"""
+        test_name = "Server Upgrade"
+
+        SERVER_PLANS = {
+            1: {"name": "入門級伺服器", "cpu": "1 核心", "ram": "2GB", "disk": "40GB", "price": 0, "monthly_cost": 5},
+            2: {"name": "標準型伺服器", "cpu": "2 核心", "ram": "4GB", "disk": "80GB", "price": 20, "monthly_cost": 20},
+            3: {"name": "進階型伺服器", "cpu": "4 核心", "ram": "8GB", "disk": "160GB", "price": 50, "monthly_cost": 50},
+            4: {"name": "專業級伺服器", "cpu": "8 核心", "ram": "16GB", "disk": "320GB", "price": 100, "monthly_cost": 100},
+        }
+
+        try:
+            username = "server_upgrade_user"
+            conn = sqlite3.connect(self.db_path)
+            cur = conn.cursor()
+
+            # Clean user before test
+            cur.execute("DELETE FROM users WHERE username=?", (username,))
+            cur.execute("DELETE FROM servers WHERE username=?", (username,))
+
+            # Create user
+            cur.execute("INSERT INTO users(username, cash, days) VALUES (?, ?, ?)", (username, 200.0, 0))
+            cur.execute("INSERT INTO servers(username, level) VALUES (?, ?)", (username, 1))
+            conn.commit()
+
+            # 1. Test successful upgrade
+            new_level = 2
+
+            cur.execute("SELECT level FROM servers WHERE username=?", (username,))
+            current_level = int(cur.fetchone()[0])
+
+            cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+            cash = float(cur.fetchone()[0])
+            cost = SERVER_PLANS[new_level]["price"]
+
+            new_cash = cash - cost
+            cur.execute("UPDATE users SET cash=? WHERE username=?", (new_cash, username))
+            cur.execute("UPDATE servers SET level=? WHERE username=?", (new_level, username))
+            conn.commit()
+
+            cur.execute("SELECT level FROM servers WHERE username=?", (username,))
+            final_level = int(cur.fetchone()[0])
+            cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+            final_cash = float(cur.fetchone()[0])
+
+            if final_level == 2 and final_cash == 180.0:
+                self.log_test_result(f"{test_name} - Success", True, "Successfully upgraded server.")
+            else:
+                self.log_test_result(f"{test_name} - Success", False, f"Upgrade failed. Final level: {final_level}, Final cash: {final_cash}")
+                conn.close()
+                return False
+
+            # 2. Test upgrade with insufficient funds
+            cur.execute("UPDATE users SET cash = ? WHERE username = ?", (10.0, username))
+            conn.commit()
+
+            new_level_fail = 3
+            cost_fail = SERVER_PLANS[new_level_fail]["price"]
+            cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+            cash_fail = float(cur.fetchone()[0])
+            if cash_fail < cost_fail:
+                 self.log_test_result(f"{test_name} - Insufficient Funds", True, "Correctly blocked upgrade with insufficient funds.")
+            else:
+                self.log_test_result(f"{test_name} - Insufficient Funds", False, "Failed to identify insufficient funds.")
+                conn.close()
+                return False
+
+            # 3. Test upgrade to same level
+            new_level_same = 2
+            cur.execute("SELECT level FROM servers WHERE username=?", (username,))
+            current_level_same = int(cur.fetchone()[0])
+            if new_level_same <= current_level_same:
+                self.log_test_result(f"{test_name} - Same Level", True, "Correctly blocked upgrade to same level.")
+            else:
+                self.log_test_result(f"{test_name} - Same Level", False, "Allowed upgrade to same level.")
+                conn.close()
+                return False
+
+            conn.close()
+            return True
+
+        except Exception as e:
+            self.log_test_result(test_name, False, f"Test failed with exception: {e}")
+            if 'conn' in locals() and conn:
+                conn.close()
+            return False
+
+    def setup_database(self):
+        """Initializes a clean test database with the required schema."""
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+
+        cur.execute("CREATE TABLE IF NOT EXISTS leaderboard (username TEXT PRIMARY KEY, asset REAL NOT NULL, days INTEGER NOT NULL)")
+        cur.execute("CREATE TABLE IF NOT EXISTS casino (username TEXT PRIMARY KEY, casino_win INTEGER NOT NULL)")
+        cur.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, cash REAL NOT NULL DEFAULT 100000, days INTEGER NOT NULL DEFAULT 0)")
+        cur.execute("CREATE TABLE IF NOT EXISTS portfolios (username TEXT NOT NULL, symbol TEXT NOT NULL, qty REAL NOT NULL, avg_cost REAL NOT NULL, PRIMARY KEY (username, symbol))")
+        cur.execute("CREATE TABLE IF NOT EXISTS stocks (symbol TEXT PRIMARY KEY, price REAL NOT NULL)")
+        cur.execute("CREATE TABLE IF NOT EXISTS servers (username TEXT PRIMARY KEY, level INTEGER NOT NULL DEFAULT 1)")
+        cur.execute("CREATE TABLE IF NOT EXISTS game_saves (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, platform TEXT NOT NULL, save_name TEXT NOT NULL, game_data TEXT NOT NULL, created_at TIMESTAMP, updated_at TIMESTAMP, UNIQUE(username, save_name))")
+        cur.execute("CREATE TABLE IF NOT EXISTS achievement_unlocks (username TEXT NOT NULL, achievement_key TEXT NOT NULL, unlock_time TIMESTAMP, platform TEXT, PRIMARY KEY (username, achievement_key))")
+        cur.execute("CREATE TABLE IF NOT EXISTS save_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, from_username TEXT NOT NULL, from_platform TEXT NOT NULL, from_save_name TEXT NOT NULL, to_username TEXT NOT NULL, to_platform TEXT NOT NULL, to_save_name TEXT NOT NULL, migration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+
+        cur.execute("SELECT COUNT(*) FROM stocks")
+        if (cur.fetchone()[0] or 0) == 0:
+            symbols = [
+                ("TSMC", 100.0), ("HONHAI", 80.0), ("MTK", 120.0),
+                ("MINING", 60.0), ("FARM", 50.0), ("FOREST", 55.0),
+                ("RETAIL", 70.0), ("RESTAURANT", 65.0), ("TRAVEL", 75.0),
+                ("BTC", 1000000.0)
+            ]
+            cur.executemany("INSERT INTO stocks(symbol, price) VALUES(?, ?)", symbols)
+
+        conn.commit()
+        conn.close()
+        print("✅ Test database initialized.")
+
     def run_all_tests(self):
         """執行所有測試"""
         print("🚀 開始執行統一系統整合測試...")
+        self.setup_database()
+
+        # Reset achievement state for test isolation
+        if hasattr(self, 'achievement_manager'):
+            for achievement in self.achievement_manager.achievements:
+                achievement.unlocked = False
+
         print("=" * 50)
 
         test_methods = [
@@ -283,7 +408,8 @@ class IntegrationTestSuite:
             self.test_achievement_system,
             self.test_cross_platform_migration,
             self.test_api_endpoints_simulation,
-            self.test_data_integrity
+            self.test_data_integrity,
+            self.test_server_upgrade
         ]
 
         passed = 0
