@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from modules.tkinter import ttk, messagebox
 import random
 
 class SlotMachine:
@@ -130,7 +130,7 @@ class SlotMachine:
         # 寫入賭場排行榜 (只記錄贏的金額)
         if winnings > 0:
             try:
-                from leaderboard import CasinoLeaderboard
+                from modules.leaderboard import CasinoLeaderboard
                 if hasattr(self.game, 'username'):
                     CasinoLeaderboard().add_casino_record(self.game.username, winnings)
             except Exception as e:

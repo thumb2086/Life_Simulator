@@ -1,10 +1,10 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext
+from modules.tkinter import ttk, scrolledtext
 import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 class AchievementGallery:
     """成就圖鑒系統"""

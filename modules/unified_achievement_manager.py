@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Dict, List, Any, Optional, Callable
-from game_data import GameData
+from modules.game_data import GameData
 
 
 class UnifiedAchievement:

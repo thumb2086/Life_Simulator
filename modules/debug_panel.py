@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from modules.tkinter import ttk, scrolledtext, messagebox
 import json
 import time
 import psutil
@@ -326,7 +326,7 @@ class DebugPanel:
     def _export_game_state(self):
         """導出遊戲狀態"""
         try:
-            from tkinter import filedialog
+            from modules.tkinter import filedialog
             filename = filedialog.asksaveasfilename(
                 defaultextension=".json",
                 filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
@@ -448,7 +448,7 @@ class DebugPanel:
     def _export_performance_report(self):
         """導出性能報告"""
         try:
-            from tkinter import filedialog
+            from modules.tkinter import filedialog
             filename = filedialog.asksaveasfilename(
                 defaultextension=".json",
                 filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
@@ -591,7 +591,7 @@ class DebugPanel:
     def _export_log(self):
         """導出日誌"""
         try:
-            from tkinter import filedialog
+            from modules.tkinter import filedialog
             filename = filedialog.asksaveasfilename(
                 defaultextension=".txt",
                 filetypes=[("Text files", "*.txt"), ("All files", "*.*")]

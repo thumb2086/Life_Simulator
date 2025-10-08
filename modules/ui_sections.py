@@ -1,10 +1,10 @@
 import tkinter as tk
-from tkinter import ttk
+from modules.tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import json
-from crypto_manager import CryptoManager
+from modules.crypto_manager import CryptoManager
 
 FONT = ("Microsoft JhengHei", 12)
 HEADER_FONT = ("Microsoft JhengHei", 18, "bold")
@@ -477,7 +477,7 @@ def create_main_tabs(root, game):
     chart_tab = ttk.Frame(tab_control)
     tab_control.add(chart_tab, text="📈 股票")
     # 新增：產業分頁，虛擬貨幣分頁不再顯示在這裡
-    from industry_manager import IndustryManager
+    from modules.industry_manager import IndustryManager
     
     industries = list({stock['industry'] for stock in game.data.stocks.values() if stock['industry'] != '虛擬貨幣'})
     industry_tabs = ttk.Notebook(chart_tab)
@@ -785,7 +785,7 @@ def create_main_tabs(root, game):
     event_text.pack(padx=20, pady=20)
     # 取得所有事件
     try:
-        from events import EventManager
+        from modules.events import EventManager
         tmp_game = type('Tmp', (), {})()
         tmp_game.data = game.data
         event_manager = EventManager(tmp_game)

@@ -1,8 +1,8 @@
 import os
 import json
 import logging
-from .player_attributes import PlayerAttributes
-from .stock_portfolio import StockPortfolio
+from modules.player_attributes import PlayerAttributes
+from modules.stock_portfolio import StockPortfolio
 
 
 class GameData:
@@ -596,7 +596,7 @@ class GameData:
             if not hasattr(self, 'dca_funds') or not isinstance(self.dca_funds, dict):
                 self.dca_funds = {}
             if not hasattr(self, 'futures_catalog') or not isinstance(self.futures_catalog, dict):
-                from copy import deepcopy
+                from modules.copy import deepcopy
                 self.futures_catalog = deepcopy(GameData().futures_catalog)
             if not hasattr(self, 'futures_market') or not isinstance(self.futures_market, dict):
                 self.futures_market = {

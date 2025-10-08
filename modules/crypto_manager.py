@@ -1,9 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from modules.tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import random
-from config import BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE
+from modules.config import BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE
 
 class CryptoManager:
     def __init__(self, game):

@@ -1,10 +1,10 @@
-from __future__ import annotations
+from modules.__future__ import annotations
 
 import tkinter as tk
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 
 class StoreExpensesManager:

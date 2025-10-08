@@ -11,7 +11,7 @@ except Exception:  # pragma: no cover
     requests = None
 
 try:
-    from config import API_BASE_URL, API_KEY
+    from modules.config import API_BASE_URL, API_KEY
 except Exception:
     API_BASE_URL, API_KEY = None, None
 

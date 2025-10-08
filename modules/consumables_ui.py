@@ -1,9 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from modules.tkinter import ttk, messagebox
 from typing import TYPE_CHECKING, Dict, Any
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 class ConsumablesUI:
     def __init__(self, game: 'BankGame', parent_frame: tk.Frame):

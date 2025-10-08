@@ -1,13 +1,13 @@
 import random
 import json
 import logging
-from datetime import datetime, timedelta
+from modules.datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
-from enum import Enum
+from modules.dataclasses import dataclass
+from modules.enum import Enum
 
-from game_data import GameData
-from unified_stock_manager import UnifiedStockManager
+from modules.game_data import GameData
+from modules.unified_stock_manager import UnifiedStockManager
 
 
 class NewsCategory(Enum):

@@ -1,11 +1,11 @@
-from __future__ import annotations
+from modules.__future__ import annotations
 
 import os
-from datetime import datetime
+from modules.datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 
 class GameLogger:

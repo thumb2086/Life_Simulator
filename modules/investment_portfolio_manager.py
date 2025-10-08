@@ -3,7 +3,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 class InvestmentPortfolioManager:
     """投資組合管理器，提供風險評估和投資策略"""

@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from tkinter import ttk
+from modules.tkinter import ttk
 import datetime
 
 class ThemeManager:

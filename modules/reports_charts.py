@@ -1,13 +1,13 @@
-from __future__ import annotations
+from modules.__future__ import annotations
 
 import time
-from datetime import datetime
+from modules.datetime import datetime
 from typing import TYPE_CHECKING
 import tkinter as tk
-from tkinter import ttk
+from modules.tkinter import ttk
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 
 class ReportsChartsManager:

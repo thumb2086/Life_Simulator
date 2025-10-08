@@ -6,13 +6,13 @@ Life Simulator - 進階賭場系統
 import random
 import json
 import logging
-from datetime import datetime, timedelta
+from modules.datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
+from modules.dataclasses import dataclass, field
+from modules.enum import Enum
 
-from game_data import GameData
-from unified_data_manager import UnifiedDataManager
+from modules.game_data import GameData
+from modules.unified_data_manager import UnifiedDataManager
 
 
 class CasinoGame(Enum):

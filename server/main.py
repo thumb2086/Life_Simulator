@@ -9,16 +9,32 @@ import random
 import sys
 
 # 整合統一成就管理器
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'modules'))
-from unified_data_manager import UnifiedDataManager
-from unified_stock_manager import UnifiedStockManager
-from unified_achievement_manager import UnifiedAchievementManager
-from multiplayer_manager import MultiplayerManager
-from market_news_events import MarketNewsEventManager
-from social_features import SocialFeaturesManager
-from ai_investment_advisor import AIInvestmentAdvisor
-from seasonal_events import SeasonalEventsManager
-from mini_games import MiniGamesManager
+import sys
+import os
+from pathlib import Path
+
+# 設定模組路徑
+current_dir = Path(__file__).parent.absolute()
+project_root = current_dir.parent
+module_path = project_root / 'modules'
+
+if str(module_path) not in sys.path:
+    sys.path.insert(0, str(module_path))
+    print(f"Added module path: {module_path}")
+
+if not module_path.exists():
+    raise RuntimeError(f"Module path not found: {module_path}")
+
+# 匯入所需模組
+from modules.unified_data_manager import UnifiedDataManager
+from modules.unified_stock_manager import UnifiedStockManager
+from modules.unified_achievement_manager import UnifiedAchievementManager
+from modules.multiplayer_manager import MultiplayerManager
+from modules.market_news_events import MarketNewsEventManager
+from modules.social_features import SocialFeaturesManager
+from modules.ai_investment_advisor import AIInvestmentAdvisor
+from modules.seasonal_events import SeasonalEventsManager
+from modules.mini_games import MiniGamesManager
 
 DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "app.db"))
 API_KEY_EXPECTED = os.getenv("API_KEY", "dev-local-key")
@@ -468,13 +484,6 @@ class MigratePayload(BaseModel):
     to_save_name: str
 
 
-class TradePayload(BaseModel):
-    username: str
-    symbol: str
-    qty: float
-    action: str  # 'buy' 或 'sell'
-
-
 class AdvancedTradePayload(BaseModel):
     username: str
     symbol: str
@@ -651,7 +660,7 @@ def save_game_data(payload: GameDataPayload):
     """
     try:
         # 從 payload 建立 GameData 對象
-        from game_data import GameData
+        from modules.game_data import GameData
         game_data = GameData()
         game_data.__dict__.update(payload.game_data)
 
@@ -845,7 +854,7 @@ def advanced_trade(payload: AdvancedTradePayload):
 
             current_qty = holdings[payload.symbol]['owned']
             if payload.qty > current_qty:
-                raise HTTPException(status_code=400, detail=".0f"".0f"f"持有股票不足，需要 {payload.qty:.0f} 股，目前持有 {current_qty:.0f} 股")
+                raise HTTPException(status_code=400, detail=f"持有股票不足，需要 {payload.qty:.0f} 股，目前持有 {current_qty:.0f} 股")
 
             proceeds = payload.qty * price
             game_data.cash += proceeds
@@ -855,7 +864,7 @@ def advanced_trade(payload: AdvancedTradePayload):
             else:
                 game_data.stocks[payload.symbol]['owned'] -= payload.qty
 
-            success, message = True, ".2f"f"成功賣出 {payload.qty:.0f} 股，獲得 ${proceeds:.2f}"
+            success, message = True, f"成功賣出 {payload.qty:.0f} 股，獲得 ${proceeds:.2f}"
 
         else:
             raise HTTPException(status_code=400, detail="無效的交易動作")
@@ -1093,7 +1102,7 @@ def create_session(payload: MultiplayerSessionPayload):
     建立多人遊戲會話
     """
     try:
-        from multiplayer_manager import GameMode
+        from modules.multiplayer_manager import GameMode
         mode = GameMode(payload.mode) if payload.mode in ['solo', 'multiplayer', 'tournament', 'league'] else GameMode.MULTIPLAYER
 
         session_id = multiplayer_manager.create_session(
@@ -1319,7 +1328,7 @@ def record_player_action(session_id: str, username: str, action: str, action_dat
     記錄玩家動作
     """
     try:
-        from multiplayer_manager import PlayerAction
+        from modules.multiplayer_manager import PlayerAction
 
         if action not in ['buy_stock', 'sell_stock', 'use_buff', 'complete_achievement', 'join_session', 'leave_session']:
             raise HTTPException(status_code=400, detail="無效的動作類型")
@@ -1379,7 +1388,7 @@ def generate_news(payload: NewsGenerationPayload):
     生成新聞（管理員功能）
     """
     try:
-        from market_news_events import NewsCategory, NewsImpact
+        from modules.market_news_events import NewsCategory, NewsImpact
 
         # 轉換分類和影響
         category = None
@@ -1430,7 +1439,7 @@ def generate_event(payload: EventGenerationPayload):
     生成市場事件（管理員功能）
     """
     try:
-        from market_news_events import EventType, NewsImpact
+        from modules.market_news_events import EventType, NewsImpact
 
         # 轉換事件類型和嚴重程度
         event_type = None
@@ -1547,7 +1556,7 @@ def get_news_categories():
     獲取新聞分類列表
     """
     try:
-        from market_news_events import NewsCategory
+        from modules.market_news_events import NewsCategory
         categories = [cat.value for cat in NewsCategory]
         return {"ok": True, "categories": categories}
     except Exception as e:
@@ -1560,7 +1569,7 @@ def get_event_types():
     獲取事件類型列表
     """
     try:
-        from market_news_events import EventType
+        from modules.market_news_events import EventType
         event_types = [event.value for event in EventType]
         return {"ok": True, "event_types": event_types}
     except Exception as e:
@@ -1573,7 +1582,7 @@ def get_impact_levels():
     獲取影響程度列表
     """
     try:
-        from market_news_events import NewsImpact
+        from modules.market_news_events import NewsImpact
         impacts = [impact.value for impact in NewsImpact]
         return {"ok": True, "impacts": impacts}
     except Exception as e:
@@ -2121,7 +2130,7 @@ def get_seasonal_events(season: Optional[str] = None):
     獲取季節性活動
     """
     try:
-        from seasonal_events import Season
+        from modules.seasonal_events import Season
 
         season_enum = None
         if season:
@@ -2260,7 +2269,7 @@ def generate_random_event(season: Optional[str] = None):
     生成隨機季節性活動（管理員功能）
     """
     try:
-        from seasonal_events import Season
+        from modules.seasonal_events import Season
 
         season_enum = None
         if season:
@@ -2302,7 +2311,7 @@ def get_seasonal_calendar():
     try:
         calendar = {}
 
-        from seasonal_events import Season
+        from modules.seasonal_events import Season
         for season in Season:
             events = seasonal_manager.get_seasonal_events(season)
             calendar[season.value] = events
@@ -2353,7 +2362,7 @@ def play_roulette(payload: RouletteBetPayload):
     玩俄羅斯輪盤
     """
     try:
-        from mini_games import RouletteBetType
+        from modules.mini_games import RouletteBetType
 
         # 轉換賭注類型
         bet_type_map = {
@@ -2492,7 +2501,7 @@ def get_casino_leaderboard(limit: int = Query(default=50, ge=1, le=200)):
     獲取賭場排行榜
     """
     try:
-        from mini_games import MiniGameType
+        from modules.mini_games import MiniGameType
 
         leaderboard = mini_games_manager.get_game_leaderboard(MiniGameType.CASINO, limit)
         return {"ok": True, "leaderboard": leaderboard}
@@ -2586,7 +2595,7 @@ def get_trivia_question(difficulty: Optional[str] = None, category: Optional[str
     獲取知識問答題目
     """
     try:
-        from mini_games import Difficulty
+        from modules.mini_games import Difficulty
 
         diff_enum = None
         if difficulty:
@@ -2705,7 +2714,7 @@ def get_game_leaderboard(game_type: str = "casino", limit: int = 10):
     獲取遊戲排行榜
     """
     try:
-        from mini_games import MiniGameType
+        from modules.mini_games import MiniGameType
 
         type_map = {
             'casino': MiniGameType.CASINO,
@@ -2730,7 +2739,7 @@ def get_mini_game_types():
     獲取迷你遊戲類型列表
     """
     try:
-        from mini_games import MiniGameType, CasinoGame, Difficulty
+        from modules.mini_games import MiniGameType, CasinoGame, Difficulty
 
         game_types = [game_type.value for game_type in MiniGameType]
         casino_games = [game.value for game in CasinoGame]

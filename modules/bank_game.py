@@ -1,36 +1,36 @@
-from ui_sections import create_header_section, create_main_tabs
-from theme_manager import ThemeManager
-from game_data import GameData
-from slot_machine import SlotMachine
-from advanced_casino import AdvancedCasinoManager, RouletteBetType
-from unified_data_manager import UnifiedDataManager
-from achievements import AchievementsManager
-from consumables_ui import ConsumablesUI
-from events import EventManager
-from leaderboard import Leaderboard
+from modules.ui_sections import create_header_section, create_main_tabs
+from modules.theme_manager import ThemeManager
+from modules.game_data import GameData
+from modules.slot_machine import SlotMachine
+from modules.advanced_casino import AdvancedCasinoManager, RouletteBetType
+from modules.unified_data_manager import UnifiedDataManager
+from modules.achievements import AchievementsManager
+from modules.consumables_ui import ConsumablesUI
+from modules.events import EventManager
+from modules.leaderboard import Leaderboard
 import tkinter as tk
-from tkinter import messagebox, simpledialog
-from datetime import datetime
+from modules.tkinter import messagebox, simpledialog
+from modules.datetime import datetime
 import time
 import random
 import os
-from stock_manager import StockManager
-from entrepreneurship import EntrepreneurshipManager
-from reports_charts import ReportsChartsManager
-from store_expenses import StoreExpensesManager
-from logger import GameLogger
-from job_manager import JobManager
-from achievement_gallery import AchievementGallery
-from travel_system import TravelSystem
-from config import PERSIST_DEBOUNCE_MS, UNIFIED_TICK_MS, API_BASE_URL, API_KEY, STOCK_UPDATE_TICKS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE, MONTH_DAYS
-from dividend_manager import DividendManager
-from debug_panel import DebugPanel
-from social_system import SocialSystem
-from housing_system import HousingSystem
-from seasonal_system import SeasonalSystem
-from education_career_system import EducationCareerSystem
-from health_system import HealthSystem
-from investment_portfolio_manager import InvestmentPortfolioManager
+from modules.stock_manager import StockManager
+from modules.entrepreneurship import EntrepreneurshipManager
+from modules.reports_charts import ReportsChartsManager
+from modules.store_expenses import StoreExpensesManager
+from modules.logger import GameLogger
+from modules.job_manager import JobManager
+from modules.achievement_gallery import AchievementGallery
+from modules.travel_system import TravelSystem
+from modules.config import PERSIST_DEBOUNCE_MS, UNIFIED_TICK_MS, API_BASE_URL, API_KEY, STOCK_UPDATE_TICKS, TIME_LABEL_MS, LEADERBOARD_REFRESH_MS, BTC_VOLATILITY, BTC_MIN_PRICE, CRYPTO_MINED_PER_HASHRATE, MONTH_DAYS
+from modules.dividend_manager import DividendManager
+from modules.debug_panel import DebugPanel
+from modules.social_system import SocialSystem
+from modules.housing_system import HousingSystem
+from modules.seasonal_system import SeasonalSystem
+from modules.education_career_system import EducationCareerSystem
+from modules.health_system import HealthSystem
+from modules.investment_portfolio_manager import InvestmentPortfolioManager
 
 MODULE_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.abspath(os.path.join(MODULE_DIR, '..', 'data'))
@@ -470,7 +470,7 @@ class BankGame:
         if not self._require_casino_login():
             return
         try:
-            from blackjack_game import BlackjackWindow
+            from modules.blackjack_game import BlackjackWindow
             BlackjackWindow(self.root, self)
             self.casino_status_var.set("已開啟 21 點遊戲視窗，祝你好運！")
         except Exception as e:
@@ -1888,7 +1888,7 @@ class BankGame:
 
     def show_leaderboard(self):
         # 只顯示現有帳號的前100名（同時掃描根目錄與 saves/ 以相容新舊路徑）
-        from os import listdir
+        from modules.os import listdir
         import os as _os
         usernames_valid = set([f[5:-5] for f in listdir('.') if f.startswith('save_') and f.endswith('.json')])
         save_dir = _os.path.join('.', 'saves')

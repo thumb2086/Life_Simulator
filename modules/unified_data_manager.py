@@ -3,7 +3,7 @@ import json
 import sqlite3
 import logging
 from typing import Dict, Any, Optional, Union
-from game_data import GameData
+from modules.game_data import GameData
 
 
 class UnifiedDataManager:

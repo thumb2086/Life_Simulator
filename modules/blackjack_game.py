@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from modules.tkinter import ttk, messagebox
 import random
 import time
 

@@ -1,7 +1,7 @@
 import random
 import logging
 from typing import Dict, List, Tuple, Optional, Any
-from game_data import GameData
+from modules.game_data import GameData
 
 
 class UnifiedStockManager:

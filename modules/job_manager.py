@@ -1,10 +1,10 @@
-from __future__ import annotations
+from modules.__future__ import annotations
 
 from typing import TYPE_CHECKING
 import random
 
 if TYPE_CHECKING:
-    from bank_game import BankGame
+    from modules.bank_game import BankGame
 
 
 class JobManager:

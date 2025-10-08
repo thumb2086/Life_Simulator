@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: life_simulator_server
+Version: 1.0.0
+Summary: Life Simulator Game Server
+Author-email: Your Name <your.email@example.com>
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
