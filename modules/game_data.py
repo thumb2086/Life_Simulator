@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+from .player_attributes import PlayerAttributes
+from .stock_portfolio import StockPortfolio
 
 
 class GameData:
@@ -25,47 +27,11 @@ class GameData:
         
         # 設定預設難度
         self.current_difficulty = 'normal'
-        # 多檔股票資料
-        self.stocks = {
-            'TSMC': {'name': '台積電', 'industry': '科技業', 'price': 100, 'owned': 0, 'total_cost': 0, 'history': [100], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'HONHAI': {'name': '鴻海', 'industry': '科技業', 'price': 80, 'owned': 0, 'total_cost': 0, 'history': [80], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'MTK': {'name': '聯發科', 'industry': '科技業', 'price': 120, 'owned': 0, 'total_cost': 0, 'history': [120], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'MINING': {'name': '挖礦公司', 'industry': '一級產業', 'price': 60, 'owned': 0, 'total_cost': 0, 'history': [60], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 2, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'FARM': {'name': '農業公司', 'industry': '一級產業', 'price': 50, 'owned': 0, 'total_cost': 0, 'history': [50], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.5, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'FOREST': {'name': '林業公司', 'industry': '一級產業', 'price': 55, 'owned': 0, 'total_cost': 0, 'history': [55], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1.2, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'RETAIL': {'name': '零售連鎖', 'industry': '服務業', 'price': 70, 'owned': 0, 'total_cost': 0, 'history': [70], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 1, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'RESTAURANT': {'name': '餐飲集團', 'industry': '服務業', 'price': 65, 'owned': 0, 'total_cost': 0, 'history': [65], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.8, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'TRAVEL': {'name': '旅遊公司', 'industry': '服務業', 'price': 75, 'owned': 0, 'total_cost': 0, 'history': [75], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0.9, 'dividend_interval': 30, 'next_dividend_day': 30},
-            'BTC': {'name': '比特幣', 'industry': '虛擬貨幣', 'price': 1000000, 'owned': 0, 'total_cost': 0, 'history': [1000000], 'buy_points': [], 'sell_points': [], 'dividend_per_share': 0, 'dividend_interval': 0, 'next_dividend_day': 0}
-        }
-        # 每檔股票新增 DRIP（股息再投資）開關，預設 False
-        for code, stock in self.stocks.items():
-            stock['drip'] = False
-        self.btc_balance = 0.0
-        self.btc_miner_count = 0
-        self.btc_hashrate = 0.0
-        self.market_volatility = 0.01 # 普通股票波動率
-        
-        # 新增比特幣相關可調整參數
-        self.btc_mining_rate_per_kh = 0.001 # 每 1 kh 算力每回合產出的比特幣數量
-        self.btc_price_volatility_sigma = 0.003 # 比特幣價格波動率 (高斯分佈的標準差)
-
-        self.transaction_history = []
-        self.last_slot_win = 0
+        self.portfolio = StockPortfolio()
         self.achievements_unlocked = []
         self.days = 0
         # --- Player attributes ---
-        # 基礎屬性（0~100）：快樂與體力
-        self.happiness = 50
-        self.stamina = 50
-        # 擴充屬性（0~100）：智力、勤奮、魅力、經驗（0~1000 可擴展，但先以 0~100 顯示）、今日運氣
-        self.intelligence = 50
-        self.diligence = 50
-        self.charisma = 50
-        self.experience = 0
-        # 今日運氣（0~100）與最後生成日，用於每日重擲
-        self.luck_today = 50
-        self.last_luck_day = -1
+        self.attributes = PlayerAttributes()
         if is_reborn:
             self.reborn_count += 1
         # --- Activities 規則與狀態（冷卻與每日上限）---

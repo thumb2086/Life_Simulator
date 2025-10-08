@@ -20,14 +20,14 @@ class AchievementsManager:
         # 擴充成就系統，包含多種類型與進度追蹤
         return [
             # 基礎股票成就
-            Achievement('first_stock', '第一次買股票', '成功購買任一股票', lambda gd: any(s['owned'] > 0 for s in gd.stocks.values()), '股票'),
-            Achievement('stock_portfolio_5', '投資組合擴張', '擁有5種不同股票', lambda gd: sum(1 for s in gd.stocks.values() if s['owned'] > 0) >= 5, '股票'),
-            Achievement('stock_portfolio_10', '全方位投資者', '擁有10種不同股票', lambda gd: sum(1 for s in gd.stocks.values() if s['owned'] > 0) >= 10, '股票'),
-            Achievement('stock_millionaire', '股票百萬富翁', '股票投資總價值超過$100萬', lambda gd: sum(s['price'] * s['owned'] for s in gd.stocks.values() if s['name'] != '比特幣') >= 1000000, '股票'),
+            Achievement('first_stock', '第一次買股票', '成功購買任一股票', lambda gd: any(s['owned'] > 0 for s in gd.portfolio.stocks.values()), '股票'),
+            Achievement('stock_portfolio_5', '投資組合擴張', '擁有5種不同股票', lambda gd: sum(1 for s in gd.portfolio.stocks.values() if s['owned'] > 0) >= 5, '股票'),
+            Achievement('stock_portfolio_10', '全方位投資者', '擁有10種不同股票', lambda gd: sum(1 for s in gd.portfolio.stocks.values() if s['owned'] > 0) >= 10, '股票'),
+            Achievement('stock_millionaire', '股票百萬富翁', '股票投資總價值超過$100萬', lambda gd: sum(s['price'] * s['owned'] for s in gd.portfolio.stocks.values() if s['name'] != '比特幣') >= 1000000, '股票'),
             
             # 比特幣成就
-            Achievement('btc_first', '加密貨幣新手', '首次購買比特幣', lambda gd: gd.btc_balance > 0, '加密貨幣'),
-            Achievement('btc_whale', '比特幣鯨魚', '擁有價值超過$10萬的比特幣', lambda gd: gd.btc_balance * gd.stocks['BTC']['price'] >= 100000, '加密貨幣'),
+            Achievement('btc_first', '加密貨幣新手', '首次購買比特幣', lambda gd: gd.portfolio.btc_balance > 0, '加密貨幣'),
+            Achievement('btc_whale', '比特幣鯨魚', '擁有價值超過$10萬的比特幣', lambda gd: gd.portfolio.btc_balance * gd.portfolio.stocks['BTC']['price'] >= 100000, '加密貨幣'),
             
             # 基金成就
             Achievement('fund_first', '基金投資者', '首次購買基金', lambda gd: any(f['units'] > 0 for f in gd.funds.values()), '基金'),
@@ -53,14 +53,14 @@ class AchievementsManager:
             Achievement('phd', '博士學位', '學歷達到博士', lambda gd: gd.education_level == '博士', '教育'),
             
             # 屬性成就
-            Achievement('happy_life', '幸福人生', '快樂度達到90以上', lambda gd: gd.happiness >= 90, '屬性'),
-            Achievement('energized', '精力充沛', '體力值達到90以上', lambda gd: gd.stamina >= 90, '屬性'),
-            Achievement('genius', '天才', '智力值達到90以上', lambda gd: gd.intelligence >= 90, '屬性'),
-            Achievement('diligent_worker', '勤奮工作者', '勤奮度達到90以上', lambda gd: gd.diligence >= 90, '屬性'),
-            Achievement('charismatic', '魅力四射', '魅力值達到90以上', lambda gd: gd.charisma >= 90, '屬性'),
-            Achievement('lucky_charm', '幸運兒', '今日運氣達到90以上', lambda gd: gd.luck_today >= 90, '屬性'),
-            Achievement('experienced', '經驗豐富', '經驗值達到500以上', lambda gd: gd.experience >= 500, '屬性'),
-            Achievement('well_balanced', '均衡發展', '所有屬性都達到70以上', lambda gd: all(getattr(gd, attr, 0) >= 70 for attr in ['happiness', 'stamina', 'intelligence', 'diligence', 'charisma']), '屬性'),
+            Achievement('happy_life', '幸福人生', '快樂度達到90以上', lambda gd: gd.attributes.happiness >= 90, '屬性'),
+            Achievement('energized', '精力充沛', '體力值達到90以上', lambda gd: gd.attributes.stamina >= 90, '屬性'),
+            Achievement('genius', '天才', '智力值達到90以上', lambda gd: gd.attributes.intelligence >= 90, '屬性'),
+            Achievement('diligent_worker', '勤奮工作者', '勤奮度達到90以上', lambda gd: gd.attributes.diligence >= 90, '屬性'),
+            Achievement('charismatic', '魅力四射', '魅力值達到90以上', lambda gd: gd.attributes.charisma >= 90, '屬性'),
+            Achievement('lucky_charm', '幸運兒', '今日運氣達到90以上', lambda gd: gd.attributes.luck_today >= 90, '屬性'),
+            Achievement('experienced', '經驗豐富', '經驗值達到500以上', lambda gd: gd.attributes.experience >= 500, '屬性'),
+            Achievement('well_balanced', '均衡發展', '所有屬性都達到70以上', lambda gd: all(getattr(gd.attributes, attr, 0) >= 70 for attr in ['happiness', 'stamina', 'intelligence', 'diligence', 'charisma']), '屬性'),
             
             # 活動成就
             Achievement('studious', '勤學好問', '完成讀書活動50次', lambda gd: getattr(gd, 'activity_study_count', 0) >= 50, '活動'),
