@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Header, HTTPException, Query, Depends
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os
 import sqlite3
@@ -23,6 +24,7 @@ DB_PATH = os.getenv("DB_PATH", os.path.join(os.path.dirname(__file__), "app.db")
 API_KEY_EXPECTED = os.getenv("API_KEY", "dev-local-key")
 
 app = FastAPI(title="Life_Simulator Server", version="1.0.0")
+app.mount("/static", StaticFiles(directory="server/static"), name="static")
 
 # 初始化統一資料管理器
 data_manager = UnifiedDataManager(db_path=DB_PATH)
@@ -101,6 +103,15 @@ def init_db():
         )
         """
     )
+    # Servers
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS servers (
+            username TEXT PRIMARY KEY,
+            level INTEGER NOT NULL DEFAULT 1
+        )
+        """
+    )
     # Seed some stocks if empty
     cur.execute("SELECT COUNT(*) FROM stocks")
     if (cur.fetchone()[0] or 0) == 0:
@@ -160,6 +171,7 @@ def ensure_user(conn, username: str):
     cur.execute("SELECT username FROM users WHERE username=?", (username,))
     if cur.fetchone() is None:
         cur.execute("INSERT INTO users(username, cash, days) VALUES (?, ?, ?)", (username, 100000.0, 0))
+        cur.execute("INSERT INTO servers(username, level) VALUES (?, ?)", (username, 1))
         conn.commit()
 
 def get_prices(conn, symbols: Optional[List[str]] = None) -> Dict[str, float]:
@@ -2733,6 +2745,70 @@ def get_mini_game_types():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"獲取遊戲類型失敗: {str(e)}")
+
+
+# --- Server Upgrade APIs ---
+SERVER_PLANS = {
+    1: {"name": "入門級伺服器", "cpu": "1 核心", "ram": "2GB", "disk": "40GB", "price": 0, "monthly_cost": 5},
+    2: {"name": "標準型伺服器", "cpu": "2 核心", "ram": "4GB", "disk": "80GB", "price": 20, "monthly_cost": 20},
+    3: {"name": "進階型伺服器", "cpu": "4 核心", "ram": "8GB", "disk": "160GB", "price": 50, "monthly_cost": 50},
+    4: {"name": "專業級伺服器", "cpu": "8 核心", "ram": "16GB", "disk": "320GB", "price": 100, "monthly_cost": 100},
+}
+
+class ServerUpgradePayload(BaseModel):
+    token: str
+    level: int
+
+@app.get("/server/plans")
+def get_server_plans():
+    return {"plans": SERVER_PLANS}
+
+@app.get("/server/state")
+def get_server_state(token: str):
+    username = get_username_by_token(token)
+    conn = get_db()
+    cur = conn.cursor()
+    ensure_user(conn, username)
+    cur.execute("SELECT level FROM servers WHERE username=?", (username,))
+    row = cur.fetchone()
+    level = int(row["level"]) if row else 1
+    conn.close()
+    return {"level": level, "plan": SERVER_PLANS.get(level)}
+
+@app.post("/server/upgrade")
+def upgrade_server(payload: ServerUpgradePayload):
+    username = get_username_by_token(payload.token)
+    new_level = payload.level
+    if new_level not in SERVER_PLANS:
+        raise HTTPException(status_code=400, detail="無效的伺服器等級")
+
+    conn = get_db()
+    cur = conn.cursor()
+    ensure_user(conn, username)
+
+    cur.execute("SELECT level FROM servers WHERE username=?", (username,))
+    current_level = int(cur.fetchone()["level"])
+
+    if new_level <= current_level:
+        conn.close()
+        raise HTTPException(status_code=400, detail="無法降級或升級至相同等級")
+
+    cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+    cash = float(cur.fetchone()["cash"])
+
+    cost = SERVER_PLANS[new_level]["price"]
+
+    if cash < cost:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現金不足，無法升級")
+
+    new_cash = cash - cost
+    cur.execute("UPDATE users SET cash=? WHERE username=?", (new_cash, username))
+    cur.execute("UPDATE servers SET level=? WHERE username=?", (new_level, username))
+    conn.commit()
+    conn.close()
+
+    return {"ok": True, "message": "伺服器升級成功"}
 
 
 if __name__ == "__main__":

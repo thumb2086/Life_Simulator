@@ -72,11 +72,17 @@ window.App = (function(){
       });
       saveToken(data.token);
       status.textContent = '登入成功';
-      await loadState();
-      show(qs('#login-section'), false);
-      show(qs('#game-section'), true);
-      // 登入後啟動自動刷新
-      startAutoRefresh();
+      if (window.location.pathname.includes('server_upgrade.html')) {
+        show(qs('#login-section'), false);
+        show(qs('#server-section'), true);
+        await loadServerPlans();
+      } else {
+        await loadState();
+        show(qs('#login-section'), false);
+        show(qs('#game-section'), true);
+        // 登入後啟動自動刷新
+        startAutoRefresh();
+      }
     }catch(e){
       status.textContent = `登入失敗: ${e.message}`;
     }
@@ -221,5 +227,78 @@ window.App = (function(){
     }
   }
 
-  return { initLeaderboard, initDashboard };
+  async function initServerUpgradePage() {
+    wireDashboard();
+    registerSW();
+    const token = getToken();
+    if (token) {
+      show(qs('#login-section'), false);
+      show(qs('#server-section'), true);
+      await loadServerPlans();
+    }
+  }
+
+  async function loadServerPlans() {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const [plansData, stateData] = await Promise.all([
+        fetchJSON('/server/plans'),
+        fetchJSON(`/server/state?token=${encodeURIComponent(token)}`)
+      ]);
+
+      const plans = plansData.plans;
+      const currentLevel = stateData.level;
+      const plansContainer = qs('#server-plans');
+      plansContainer.innerHTML = '';
+
+      for (const level in plans) {
+        const plan = plans[level];
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${plan.name}</h3>
+          <p>CPU: ${plan.cpu}</p>
+          <p>記憶體: ${plan.ram}</p>
+          <p>磁碟: ${plan.disk}</p>
+          <p>價格: ${formatNumber(plan.price)}</p>
+          <p>月費: ${formatNumber(plan.monthly_cost)}</p>
+          <button class="btn-upgrade" data-level="${level}" ${parseInt(level) <= currentLevel ? 'disabled' : ''}>
+            ${parseInt(level) <= currentLevel ? '目前方案' : '升級'}
+          </button>
+        `;
+        plansContainer.appendChild(card);
+      }
+
+      qsa('.btn-upgrade').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const newLevel = e.target.dataset.level;
+          await upgradeServer(newLevel);
+        });
+      });
+
+    } catch (e) {
+      qs('#status').textContent = `讀取伺服器方案失敗: ${e.message}`;
+    }
+  }
+
+  async function upgradeServer(level) {
+    const token = getToken();
+    const status = qs('#status');
+    status.textContent = '升級中...';
+    try {
+      await fetchJSON('/server/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, level: parseInt(level) })
+      });
+      status.textContent = '升級成功';
+      await loadServerPlans();
+    } catch (e) {
+      status.textContent = `升級失敗: ${e.message}`;
+    }
+  }
+
+  return { initLeaderboard, initDashboard, initServerUpgradePage };
 })();
