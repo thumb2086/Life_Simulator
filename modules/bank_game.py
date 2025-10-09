@@ -9,8 +9,8 @@ from modules.consumables_ui import ConsumablesUI
 from modules.events import EventManager
 from modules.leaderboard import Leaderboard
 import tkinter as tk
-from modules.tkinter import messagebox, simpledialog
-from modules.datetime import datetime
+from tkinter import messagebox, simpledialog
+from datetime import datetime
 import time
 import random
 import os
@@ -346,6 +346,65 @@ class BankGame:
                     'buffs': [
                         {'stat': 'charisma', 'amount': 8, 'duration': 1},
                         {'stat': 'happiness', 'amount': 5, 'duration': 1}
+                    ]
+                },
+                # 新增物品
+                'lucky_charm': {
+                    'name': '幸運符咒',
+                    'price': 150.0,
+                    'daily_limit': 1,
+                    'daily_bought': 0,
+                    'description': '提升當天的幸運值',
+                    'buffs': [
+                        {'stat': 'luck_today', 'amount': 15, 'duration': 1}
+                    ],
+                    'important': True
+                },
+                'wisdom_tea': {
+                    'name': '智慧茶',
+                    'price': 120.0,
+                    'daily_limit': 2,
+                    'daily_bought': 0,
+                    'description': '提升智慧和創造力',
+                    'buffs': [
+                        {'stat': 'wisdom', 'amount': 10, 'duration': 2},
+                        {'stat': 'creativity', 'amount': 8, 'duration': 2}
+                    ]
+                },
+                'resilience_potion': {
+                    'name': '韌性藥水',
+                    'price': 200.0,
+                    'daily_limit': 1,
+                    'daily_bought': 0,
+                    'description': '提升韌性和專注力',
+                    'buffs': [
+                        {'stat': 'resilience', 'amount': 12, 'duration': 3},
+                        {'stat': 'focus', 'amount': 10, 'duration': 3}
+                    ]
+                },
+                'network_card': {
+                    'name': '人脈卡',
+                    'price': 180.0,
+                    'daily_limit': 1,
+                    'daily_bought': 0,
+                    'description': '擴展人際關係網',
+                    'buffs': [
+                        {'stat': 'social_network', 'amount': 15, 'duration': 2},
+                        {'stat': 'charisma', 'amount': 5, 'duration': 2}
+                    ]
+                },
+                'skill_boost_drink': {
+                    'name': '技能提升飲料',
+                    'price': 250.0,
+                    'daily_limit': 1,
+                    'daily_bought': 0,
+                    'description': '提升各項技能成長速度',
+                    'buffs': [
+                        {'stat': 'negotiation', 'amount': 5, 'duration': 4},
+                        {'stat': 'management', 'amount': 5, 'duration': 4},
+                        {'stat': 'research', 'amount': 5, 'duration': 4},
+                        {'stat': 'innovation', 'amount': 5, 'duration': 4},
+                        {'stat': 'leadership', 'amount': 5, 'duration': 4}
                     ]
                 }
             }
@@ -1888,7 +1947,7 @@ class BankGame:
 
     def show_leaderboard(self):
         # 只顯示現有帳號的前100名（同時掃描根目錄與 saves/ 以相容新舊路徑）
-        from modules.os import listdir
+        from os import listdir
         import os as _os
         usernames_valid = set([f[5:-5] for f in listdir('.') if f.startswith('save_') and f.endswith('.json')])
         save_dir = _os.path.join('.', 'saves')

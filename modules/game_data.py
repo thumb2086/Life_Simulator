@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import random
+from copy import deepcopy
 from modules.player_attributes import PlayerAttributes
 from modules.stock_portfolio import StockPortfolio
 
@@ -596,7 +598,6 @@ class GameData:
             if not hasattr(self, 'dca_funds') or not isinstance(self.dca_funds, dict):
                 self.dca_funds = {}
             if not hasattr(self, 'futures_catalog') or not isinstance(self.futures_catalog, dict):
-                from modules.copy import deepcopy
                 self.futures_catalog = deepcopy(GameData().futures_catalog)
             if not hasattr(self, 'futures_market') or not isinstance(self.futures_market, dict):
                 self.futures_market = {
@@ -935,17 +936,42 @@ class GameData:
         
         # 應用效果
         results = []
-        for effect in item.get('effects', []):
-            if effect['type'] == 'stamina':
-                self.stamina = min(100, self.stamina + effect['value'])
-                results.append(f"體力 +{effect['value']}")
-            elif effect['type'] == 'buff':
-                self.add_buff(
-                    stat=effect['stat'],
-                    value=effect['value'],
-                    duration=effect['duration']
-                )
-                results.append(f"{effect['stat']} +{int(effect['value']*100)}% ({effect['duration']}小時)")
+        
+        # 處理恢復效果
+        if 'restore' in item:
+            for stat, amount in item['restore'].items():
+                if hasattr(self, stat):
+                    current_value = getattr(self, stat)
+                    setattr(self, stat, min(100, current_value + amount))
+                    results.append(f"{stat} +{amount}")
+                elif stat in self.skills:
+                    self.skills[stat] = min(100, self.skills[stat] + amount)
+                    results.append(f"{stat}技能 +{amount}")
+        
+        # 處理buff效果
+        if 'buffs' in item:
+            for buff in item['buffs']:
+                stat = buff['stat']
+                amount = buff['amount']
+                duration = buff['duration']
+                
+                # 檢查是否是技能
+                if stat in self.skills:
+                    self.add_buff(
+                        stat=f"skill_{stat}",
+                        value=amount,
+                        duration=duration,
+                        description=f"技能成長加成"
+                    )
+                    results.append(f"{stat}技能成長 +{amount} ({duration}小時)")
+                else:
+                    self.add_buff(
+                        stat=stat,
+                        value=amount,
+                        duration=duration,
+                        description=item.get('description', '')
+                    )
+                    results.append(f"{stat} +{amount} ({duration}小時)")
         
         # 從庫存中移除
         self.remove_item(item_id)
@@ -978,14 +1004,41 @@ class GameData:
             
         expired = []
         remaining = []
+        hours_passed = minutes_passed / 60  # 將分鐘轉換為小時
         
         for buff in self.active_buffs:
             buff['duration'] = max(0, buff['duration'] - minutes_passed)
+            
             if buff['duration'] <= 0:
                 expired.append(buff)
+                
+                # 處理技能buff過期
+                if buff['stat'].startswith('skill_'):
+                    skill_name = buff['stat'][6:]  # 移除 "skill_" 前綴
+                    if hasattr(self.attributes, 'skills') and skill_name in self.attributes.skills:
+                        # 在buff過期時可能需要進行一些清理或調整
+                        pass
             else:
                 remaining.append(buff)
                 
+                # 處理持續性效果
+                stat = buff['stat']
+                if stat.startswith('skill_'):
+                    # 技能成長加成效果
+                    skill_name = stat[6:]
+                    if hasattr(self.attributes, 'skills') and skill_name in self.attributes.skills:
+                        # 在buff持續期間提供額外的技能成長
+                        bonus_growth = buff['value'] * hours_passed * 0.1  # 降低成長速度以平衡
+                        self.attributes.skills[skill_name] = min(100, 
+                            self.attributes.skills[skill_name] + bonus_growth)
+                elif hasattr(self.attributes, stat):
+                    # 一般屬性buff的持續效果
+                    current_value = getattr(self.attributes, stat)
+                    if stat in ['luck_today', 'creativity', 'wisdom', 'resilience', 'focus', 'social_network']:
+                        # 這些屬性在buff期間保持提升狀態
+                        buff_value = buff['value']
+                        setattr(self.attributes, stat, min(100, current_value + buff_value))
+                        
         self.active_buffs = remaining
         return expired
 
