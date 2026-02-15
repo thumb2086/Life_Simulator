@@ -4,63 +4,41 @@ window.App = (function(){
 
   async function fetchJSON(url, opts={}){
     const resp = await fetch(url, opts);
-    if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if(!resp.ok) {
+      const err = await resp.json().catch(()=>({detail: resp.statusText}));
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
     return await resp.json();
   }
 
-  // 儀表板自動刷新計時器
   let refreshTimer = null;
-
-  function renderTable(tbody, rows, columns){
-    tbody.innerHTML = '';
-    rows.forEach((r, idx) => {
-      const tr = document.createElement('tr');
-      const rank = idx + 1;
-      const cells = [rank, ...columns.map(c => r[c] ?? '')];
-      cells.forEach(v => {
-        const td = document.createElement('td');
-        td.textContent = typeof v === 'number' ? formatNumber(v) : v;
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-  }
 
   function formatNumber(n){
     try{
       return new Intl.NumberFormat('zh-Hant', {maximumFractionDigits: 2}).format(n);
-    }catch(e){
-      return n;
-    }
+    }catch(e){ return n; }
   }
 
-  async function loadLeaderboard(){
-    const status = qs('#status');
-    try{
-      const asset = await fetchJSON('/leaderboard/top');
-      const casino = await fetchJSON('/casino/top');
-      renderTable(qs('#asset-table tbody'), asset.records || [], ['username','asset','days']);
-      renderTable(qs('#casino-table tbody'), casino.records || [], ['username','casino_win']);
-      const now = new Date();
-      status.textContent = `更新於 ${now.toLocaleTimeString()}`;
-    }catch(e){
-      status.textContent = `讀取失敗: ${e.message}`;
-    }
-  }
-
-  function initLeaderboard({refreshMs=10000}={}){
-    loadLeaderboard();
-    setInterval(loadLeaderboard, refreshMs);
-    registerSW();
-  }
-
-  // --- Dashboard ---
   function saveToken(t){ try{ localStorage.setItem('sg_token', t); }catch(e){} }
   function getToken(){ try{ return localStorage.getItem('sg_token') || ''; }catch(e){ return ''; } }
 
   function show(el, on=true){ if(el) el.style.display = on ? '' : 'none'; }
   function setText(sel, txt){ const el = qs(sel); if(el) el.textContent = txt; }
 
+  // --- Tabs ---
+  function openTab(tabName) {
+    qsa('.tab-content').forEach(t => t.classList.remove('active'));
+    qsa('.tab-btn').forEach(b => b.classList.remove('active'));
+    qs(`#tab-${tabName}`).classList.add('active');
+    qs(`.tab-btn[data-tab="${tabName}"]`).classList.add('active');
+
+    // Load specific tab data if needed
+    if(tabName === 'market') loadMarketItems();
+    if(tabName === 'inventory') loadInventory();
+    if(tabName === 'company') loadBusinesses();
+  }
+
+  // --- Auth ---
   async function login(){
     const username = qs('#username').value.trim();
     const status = qs('#login-status');
@@ -72,233 +50,277 @@ window.App = (function(){
       });
       saveToken(data.token);
       status.textContent = '登入成功';
-      if (window.location.pathname.includes('server_upgrade.html')) {
-        show(qs('#login-section'), false);
-        show(qs('#server-section'), true);
-        await loadServerPlans();
-      } else {
-        await loadState();
-        show(qs('#login-section'), false);
-        show(qs('#game-section'), true);
-        // 登入後啟動自動刷新
-        startAutoRefresh();
-      }
-    }catch(e){
-      status.textContent = `登入失敗: ${e.message}`;
-    }
+      show(qs('#login-section'), false);
+      show(qs('#game-section'), true);
+      await loadState();
+      startAutoRefresh();
+    }catch(e){ status.textContent = `登入失敗: ${e.message}`; }
   }
 
+  // --- Game State ---
   async function loadState(){
     const token = getToken();
     if(!token){ return; }
     const data = await fetchJSON(`/game/state?token=${encodeURIComponent(token)}`);
     setText('#u-name', data.username);
-    setText('#u-cash', formatNumber(data.cash));
     setText('#u-days', data.days);
-    if (typeof data.net_worth !== 'undefined') {
-      setText('#u-net', formatNumber(data.net_worth));
-    }
-    // holdings
-    const tbHold = qs('#tbl-holdings tbody');
-    if(tbHold){
-      tbHold.innerHTML = '';
-      (data.holdings || []).forEach(h => {
-        const tr = document.createElement('tr');
-        [['symbol'], ['qty'], ['avg_cost']].forEach(col => {
-          const td = document.createElement('td');
-          const key = col[0];
-          const val = h[key];
-          td.textContent = typeof val === 'number' ? formatNumber(val) : val;
-          tr.appendChild(td);
-        });
-        tbHold.appendChild(tr);
-      });
-    }
-    // prices
-    const tbPrice = qs('#tbl-prices tbody');
-    if(tbPrice){
-      tbPrice.innerHTML = '';
-      const entries = Object.entries(data.prices || {});
-      entries.sort((a,b) => a[0].localeCompare(b[0]));
-      entries.forEach(([sym, p]) => {
-        const tr = document.createElement('tr');
-        const td1 = document.createElement('td'); td1.textContent = sym;
-        const td2 = document.createElement('td'); td2.textContent = formatNumber(p);
-        tr.appendChild(td1); tr.appendChild(td2);
-        tbPrice.appendChild(tr);
-      });
-    }
+    setText('#u-cash', '$' + formatNumber(data.cash));
+    setText('#u-bank', '$' + formatNumber(data.bank_balance));
+    setText('#u-loan', '$' + formatNumber(data.loan));
+    setText('#u-dist', formatNumber(data.travel_distance));
+    setText('#u-net', '$' + formatNumber(data.net_worth));
+
+    renderStockPrices(data.prices);
+    renderHoldings(data.holdings, data.prices);
   }
 
-  async function buy(){
+  function renderStockPrices(prices){
+    const tb = qs('#tbl-prices tbody');
+    if(!tb) return;
+    tb.innerHTML = '';
+    Object.entries(prices).sort().forEach(([sym, p]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${sym}</td>
+        <td>$${formatNumber(p)}</td>
+        <td><button onclick="App.tradeStock('${sym}', 'buy')">買入</button></td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderHoldings(holdings, prices){
+    const tb = qs('#tbl-holdings tbody');
+    if(!tb) return;
+    tb.innerHTML = '';
+    holdings.forEach(h => {
+      const curPrice = prices[h.symbol] || 0;
+      const profit = (curPrice - h.avg_cost) * h.qty;
+      const profitClass = profit >= 0 ? 'gain' : 'loss';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${h.symbol}</td>
+        <td>${formatNumber(h.qty)}</td>
+        <td>$${formatNumber(h.avg_cost)}</td>
+        <td>$${formatNumber(curPrice)}</td>
+        <td class="${profitClass}">$${formatNumber(profit)}</td>
+        <td><button onclick="App.tradeStock('${h.symbol}', 'sell')">賣出</button></td>
+      `;
+      tb.appendChild(tr);
+    });
+  }
+
+  // --- Bank ---
+  async function bankAction(action){
     const token = getToken();
-    const symbol = (qs('#buy-symbol').value||'').trim();
-    const qty = parseFloat(qs('#buy-qty').value||'0');
-    const status = qs('#buy-status');
-    status.textContent = '下單中...';
-    try{
-      await fetchJSON('/stocks/buy', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, symbol, qty }) });
-      status.textContent = '買入成功';
+    const amount = parseFloat(qs('#bank-amount').value || 0);
+    if(amount <= 0) return alert('請輸入大於 0 的金額');
+    try {
+      await fetchJSON(`/bank/${action}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, amount })
+      });
       await loadState();
-    }catch(e){ status.textContent = `買入失敗: ${e.message}`; }
+      qs('#bank-amount').value = '';
+    } catch(e) { alert(e.message); }
   }
 
-  async function sell(){
+  // --- Stocks ---
+  async function tradeStock(symbol, action){
     const token = getToken();
-    const symbol = (qs('#sell-symbol').value||'').trim();
-    const qty = parseFloat(qs('#sell-qty').value||'0');
-    const status = qs('#sell-status');
-    status.textContent = '下單中...';
-    try{
-      await fetchJSON('/stocks/sell', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token, symbol, qty }) });
-      status.textContent = '賣出成功';
+    const qtyInput = prompt(`要${action === 'buy' ? '買入' : '賣出'}多少股 ${symbol}?`, "10");
+    const qty = parseFloat(qtyInput);
+    if(isNaN(qty) || qty <= 0) return;
+    try {
+      await fetchJSON(`/stocks/${action}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, symbol, qty })
+      });
       await loadState();
-    }catch(e){ status.textContent = `賣出失敗: ${e.message}`; }
+    } catch(e) { alert(e.message); }
   }
 
+  // --- Market ---
+  async function loadMarketItems(){
+    try {
+      const data = await fetchJSON('/market/items');
+      const tb = qs('#tbl-market-items tbody');
+      tb.innerHTML = '';
+      data.items.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${item.name}</td>
+          <td>${item.category}</td>
+          <td>$${formatNumber(item.price)}</td>
+          <td><button onclick="App.buyItem('${item.item_id}')">買入</button></td>
+        `;
+        tb.appendChild(tr);
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  async function buyItem(item_id){
+    const token = getToken();
+    try {
+      await fetchJSON('/market/buy', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, item_id, qty: 1 })
+      });
+      alert('購買成功');
+      await loadState();
+    } catch(e) { alert(e.message); }
+  }
+
+  // --- Inventory ---
+  async function loadInventory(){
+    try {
+      const token = getToken();
+      const data = await fetchJSON(`/inventory/list?token=${encodeURIComponent(token)}`);
+      const tb = qs('#tbl-inventory tbody');
+      tb.innerHTML = '';
+      data.inventory.forEach(i => {
+        const profit = (i.current_price - i.purchase_price) * i.qty;
+        const profitClass = profit >= 0 ? 'gain' : 'loss';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${i.name}</td>
+          <td>${i.category}</td>
+          <td>${i.qty}</td>
+          <td>$${formatNumber(i.purchase_price)}</td>
+          <td>$${formatNumber(i.current_price)}</td>
+          <td class="${profitClass}">$${formatNumber(profit)}</td>
+          <td><button onclick="App.sellItem('${i.item_id}')">賣出</button></td>
+        `;
+        tb.appendChild(tr);
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  async function sellItem(item_id){
+    const token = getToken();
+    try {
+      await fetchJSON('/market/sell', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, item_id, qty: 1 })
+      });
+      await loadInventory();
+      await loadState();
+    } catch(e) { alert(e.message); }
+  }
+
+  // --- Company ---
+  async function loadBusinesses(){
+    try {
+      const token = getToken();
+      const data = await fetchJSON(`/business/list?token=${encodeURIComponent(token)}`);
+      const tb = qs('#tbl-businesses tbody');
+      tb.innerHTML = '';
+      data.businesses.forEach(b => {
+        const net = b.revenue - b.cost;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${b.name}</td>
+          <td>Lv.${b.level}</td>
+          <td>$${formatNumber(b.revenue)}</td>
+          <td>$${formatNumber(b.cost)}</td>
+          <td class="${net >= 0 ? 'gain' : 'loss'}">$${formatNumber(net)}</td>
+          <td><button onclick="App.upgradeBusiness(${b.id})">升級</button></td>
+        `;
+        tb.appendChild(tr);
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  async function startBusiness(){
+    const token = getToken();
+    const name = qs('#biz-name').value.trim();
+    if(!name) return alert('請輸入事業名稱');
+    try {
+      await fetchJSON('/business/start', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ token, name })
+      });
+      qs('#biz-name').value = '';
+      await loadBusinesses();
+      await loadState();
+    } catch(e) { alert(e.message); }
+  }
+
+  async function upgradeBusiness(business_id){
+    const token = getToken();
+    try {
+      await fetchJSON(`/business/upgrade?token=${encodeURIComponent(token)}&business_id=${business_id}`, {
+        method: 'POST'
+      });
+      await loadBusinesses();
+      await loadState();
+    } catch(e) { alert(e.message); }
+  }
+
+  // --- Core Actions ---
   async function advance(){
     const token = getToken();
     const status = qs('#advance-status');
-    status.textContent = '推進中...';
+    status.textContent = '結算中...';
     try{
-      await fetchJSON('/tick/advance', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
-      status.textContent = '已推進一天';
+      await fetchJSON('/tick/advance', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token })
+      });
+      status.textContent = '已推進一天，利息與營收已結算';
       await loadState();
+      // Reload active tab data
+      const activeTab = qs('.tab-btn.active').dataset.tab;
+      openTab(activeTab);
     }catch(e){ status.textContent = `失敗: ${e.message}`; }
   }
 
   async function submitLeaderboard(){
     const token = getToken();
-    const status = qs('#submit-status');
+    const status = qs('#advance-status');
     status.textContent = '提交中...';
     try{
-      const res = await fetchJSON('/leaderboard/submit_web', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
+      const res = await fetchJSON('/leaderboard/submit_web', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token })
+      });
       status.textContent = `已提交，資產=${formatNumber(res.asset)}，天數=${res.days}`;
-    }catch(e){
-      status.textContent = `提交失敗: ${e.message}`;
-    }
+      alert(`已提交排行榜！\n資產: $${formatNumber(res.asset)}\n天數: ${res.days}`);
+    }catch(e){ alert(e.message); }
+  }
+
+  function startAutoRefresh(){
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      loadState().catch(()=>{});
+    }, 5000);
   }
 
   function wireDashboard(){
-    const btnLogin = qs('#btn-login'); if(btnLogin) btnLogin.addEventListener('click', login);
-    const btnBuy = qs('#btn-buy'); if(btnBuy) btnBuy.addEventListener('click', buy);
-    const btnSell = qs('#btn-sell'); if(btnSell) btnSell.addEventListener('click', sell);
-    const btnAdv = qs('#btn-advance'); if(btnAdv) btnAdv.addEventListener('click', advance);
-    const btnSubmit = qs('#btn-submit-lb'); if(btnSubmit) btnSubmit.addEventListener('click', submitLeaderboard);
+    qs('#btn-login')?.addEventListener('click', login);
+    qs('#btn-advance')?.addEventListener('click', advance);
+    qs('#btn-deposit')?.addEventListener('click', () => bankAction('deposit'));
+    qs('#btn-withdraw')?.addEventListener('click', () => bankAction('withdraw'));
+    qs('#btn-loan')?.addEventListener('click', () => bankAction('loan'));
+    qs('#btn-repay')?.addEventListener('click', () => bankAction('repay'));
+    qs('#btn-start-biz')?.addEventListener('click', startBusiness);
+    qs('#btn-submit-lb')?.addEventListener('click', submitLeaderboard);
+
+    qsa('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => openTab(btn.dataset.tab));
+    });
   }
 
   async function initDashboard(){
     wireDashboard();
-    registerSW();
     const token = getToken();
     if(token){
-      // auto show game section if token exists
       show(qs('#login-section'), false);
       show(qs('#game-section'), true);
-      try{ await loadState(); }catch(e){ /* ignore */ }
-      // 若已登入過，啟動自動刷新
+      await loadState();
       startAutoRefresh();
     }
   }
 
-  function startAutoRefresh(refreshMs = 5000){
-    try{ if (refreshTimer) clearInterval(refreshTimer); }catch(e){}
-    refreshTimer = setInterval(() => {
-      // 靜默刷新使用者狀態（持倉/價格）
-      loadState().catch(() => {});
-    }, refreshMs);
-  }
-
-  function stopAutoRefresh(){
-    try{ if (refreshTimer) clearInterval(refreshTimer); }catch(e){}
-    refreshTimer = null;
-  }
-
-  // 清理
-  window.addEventListener('beforeunload', stopAutoRefresh);
-
-  async function registerSW(){
-    if ('serviceWorker' in navigator) {
-      try{
-        await navigator.serviceWorker.register('/static/sw.js');
-      }catch(e){
-        // ignore
-      }
-    }
-  }
-
-  async function initServerUpgradePage() {
-    wireDashboard();
-    registerSW();
-    const token = getToken();
-    if (token) {
-      show(qs('#login-section'), false);
-      show(qs('#server-section'), true);
-      await loadServerPlans();
-    }
-  }
-
-  async function loadServerPlans() {
-    const token = getToken();
-    if (!token) return;
-
-    try {
-      const [plansData, stateData] = await Promise.all([
-        fetchJSON('/server/plans'),
-        fetchJSON(`/server/state?token=${encodeURIComponent(token)}`)
-      ]);
-
-      const plans = plansData.plans;
-      const currentLevel = stateData.level;
-      const plansContainer = qs('#server-plans');
-      plansContainer.innerHTML = '';
-
-      for (const level in plans) {
-        const plan = plans[level];
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-          <h3>${plan.name}</h3>
-          <p>CPU: ${plan.cpu}</p>
-          <p>記憶體: ${plan.ram}</p>
-          <p>磁碟: ${plan.disk}</p>
-          <p>價格: ${formatNumber(plan.price)}</p>
-          <p>月費: ${formatNumber(plan.monthly_cost)}</p>
-          <button class="btn-upgrade" data-level="${level}" ${parseInt(level) <= currentLevel ? 'disabled' : ''}>
-            ${parseInt(level) <= currentLevel ? '目前方案' : '升級'}
-          </button>
-        `;
-        plansContainer.appendChild(card);
-      }
-
-      qsa('.btn-upgrade').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const newLevel = e.target.dataset.level;
-          await upgradeServer(newLevel);
-        });
-      });
-
-    } catch (e) {
-      qs('#status').textContent = `讀取伺服器方案失敗: ${e.message}`;
-    }
-  }
-
-  async function upgradeServer(level) {
-    const token = getToken();
-    const status = qs('#status');
-    status.textContent = '升級中...';
-    try {
-      await fetchJSON('/server/upgrade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, level: parseInt(level) })
-      });
-      status.textContent = '升級成功';
-      await loadServerPlans();
-    } catch (e) {
-      status.textContent = `升級失敗: ${e.message}`;
-    }
-  }
-
-  return { initLeaderboard, initDashboard, initServerUpgradePage };
+  return { initDashboard, tradeStock, buyItem, sellItem, upgradeBusiness };
 })();

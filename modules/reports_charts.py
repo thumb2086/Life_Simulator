@@ -1,7 +1,7 @@
 from modules.__future__ import annotations
 
 import time
-from modules.datetime import datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 import tkinter as tk
 from modules.tkinter import ttk

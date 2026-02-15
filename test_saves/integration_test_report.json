@@ -1,0 +1,82 @@
+{
+  "test_summary": {
+    "total_tests": 11,
+    "passed_tests": 11,
+    "failed_tests": 0,
+    "success_rate": 100.0,
+    "timestamp": "2026-02-15T01:37:14.007699"
+  },
+  "test_results": [
+    {
+      "test": "GameData Creation",
+      "success": true,
+      "message": "成功建立遊戲資料對象",
+      "timestamp": "2026-02-15T01:37:13.145887"
+    },
+    {
+      "test": "GameData Creation",
+      "success": true,
+      "message": "成功建立遊戲資料對象",
+      "timestamp": "2026-02-15T01:37:13.246477"
+    },
+    {
+      "test": "Data Manager Save/Load",
+      "success": true,
+      "message": "儲存載入功能正常",
+      "timestamp": "2026-02-15T01:37:13.255115"
+    },
+    {
+      "test": "Stock Manager Operations",
+      "success": true,
+      "message": "投資組合價值計算正常: $1400.00",
+      "timestamp": "2026-02-15T01:37:13.355890"
+    },
+    {
+      "test": "Achievement System",
+      "success": true,
+      "message": "成功解鎖成就: 第一次買股票, 資產破萬",
+      "timestamp": "2026-02-15T01:37:13.460485"
+    },
+    {
+      "test": "Cross Platform Migration",
+      "success": true,
+      "message": "跨平台遷移成功",
+      "timestamp": "2026-02-15T01:37:13.580097"
+    },
+    {
+      "test": "API Endpoints Simulation",
+      "success": true,
+      "message": "API模擬測試通過",
+      "timestamp": "2026-02-15T01:37:13.691624"
+    },
+    {
+      "test": "Data Integrity",
+      "success": true,
+      "message": "資料完整性測試通過",
+      "timestamp": "2026-02-15T01:37:13.801355"
+    },
+    {
+      "test": "Server Upgrade - Success",
+      "success": true,
+      "message": "Successfully upgraded server.",
+      "timestamp": "2026-02-15T01:37:13.905738"
+    },
+    {
+      "test": "Server Upgrade - Insufficient Funds",
+      "success": true,
+      "message": "Correctly blocked upgrade with insufficient funds.",
+      "timestamp": "2026-02-15T01:37:13.907340"
+    },
+    {
+      "test": "Server Upgrade - Same Level",
+      "success": true,
+      "message": "Correctly blocked upgrade to same level.",
+      "timestamp": "2026-02-15T01:37:13.907378"
+    }
+  ],
+  "system_info": {
+    "python_version": "3.12.12 (main, Jan 18 2026, 06:09:15) [GCC 13.3.0]",
+    "platform": "linux",
+    "working_directory": "/app"
+  }
+}

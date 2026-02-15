@@ -7,6 +7,7 @@ from typing import Optional, List, Dict, Any
 import secrets
 import random
 import sys
+import asyncio
 
 # 整合統一成就管理器
 import sys
@@ -16,14 +17,10 @@ from pathlib import Path
 # 設定模組路徑
 current_dir = Path(__file__).parent.absolute()
 project_root = current_dir.parent
-module_path = project_root / 'modules'
 
-if str(module_path) not in sys.path:
-    sys.path.insert(0, str(module_path))
-    print(f"Added module path: {module_path}")
-
-if not module_path.exists():
-    raise RuntimeError(f"Module path not found: {module_path}")
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+    print(f"Added project root to path: {project_root}")
 
 # 匯入所需模組
 from modules.unified_data_manager import UnifiedDataManager
@@ -80,6 +77,32 @@ def init_db():
         )
         """
     )
+    # Inventory
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS inventory (
+            username TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            qty INTEGER NOT NULL DEFAULT 1,
+            purchase_price REAL NOT NULL,
+            PRIMARY KEY (username, item_id)
+        )
+        """
+    )
+    # Businesses
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS businesses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            name TEXT NOT NULL,
+            level INTEGER NOT NULL DEFAULT 1,
+            revenue_per_day REAL NOT NULL,
+            cost_per_day REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS casino (
@@ -94,6 +117,9 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             cash REAL NOT NULL DEFAULT 100000,
+            bank_balance REAL NOT NULL DEFAULT 0,
+            loan REAL NOT NULL DEFAULT 0,
+            travel_distance REAL NOT NULL DEFAULT 0,
             days INTEGER NOT NULL DEFAULT 0
         )
         """
@@ -128,6 +154,18 @@ def init_db():
         )
         """
     )
+    # Market Items
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS market_items (
+            item_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            base_price REAL NOT NULL,
+            current_price REAL NOT NULL,
+            category TEXT NOT NULL -- 'investment', 'consumer', 'depreciating'
+        )
+        """
+    )
     # Seed some stocks if empty
     cur.execute("SELECT COUNT(*) FROM stocks")
     if (cur.fetchone()[0] or 0) == 0:
@@ -139,11 +177,74 @@ def init_db():
             ("BTC", 1000000.0)
         ]
         cur.executemany("INSERT INTO stocks(symbol, price) VALUES(?, ?)", symbols)
+
+    # Seed some market items if empty
+    cur.execute("SELECT COUNT(*) FROM market_items")
+    if (cur.fetchone()[0] or 0) == 0:
+        items = [
+            ("GOLD", "黃金", 1000.0, 1000.0, "investment"),
+            ("ART", "藝術品", 5000.0, 5000.0, "investment"),
+            ("BREAD", "麵包", 10.0, 10.0, "consumer"),
+            ("FUEL", "燃料", 30.0, 30.0, "consumer"),
+            ("CAR_BASIC", "基本款汽車", 20000.0, 20000.0, "depreciating"),
+            ("CAR_LUXURY", "豪華汽車", 100000.0, 100000.0, "depreciating")
+        ]
+        cur.executemany("INSERT INTO market_items(item_id, name, base_price, current_price, category) VALUES(?, ?, ?, ?, ?)", items)
     conn.commit()
     conn.close()
 
 
 init_db()
+
+async def market_update_loop():
+    while True:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+
+            # Update stocks
+            cur.execute("SELECT symbol, price FROM stocks")
+            stocks = cur.fetchall()
+            for row in stocks:
+                symbol = row[0]
+                price = row[1]
+                # simple daily movement +/- up to ~3%
+                drift = random.uniform(-0.03, 0.03)
+                new_price = max(0.01, price * (1.0 + drift))
+                cur.execute("UPDATE stocks SET price=? WHERE symbol=?", (round(new_price, 2), symbol))
+
+            # Update items
+            cur.execute("SELECT item_id, current_price, category FROM market_items")
+            items = cur.fetchall()
+            for row in items:
+                item_id = row[0]
+                price = row[1]
+                category = row[2]
+                if category == 'investment':
+                    # appreciation
+                    drift = random.uniform(0.0001, 0.001)
+                    new_price = price * (1.0 + drift)
+                elif category == 'depreciating':
+                    # depreciation
+                    drift = random.uniform(-0.001, -0.0001)
+                    new_price = price * (1.0 + drift)
+                else:
+                    # consumer goods fluctuation
+                    drift = random.uniform(-0.005, 0.005)
+                    new_price = price * (1.0 + drift)
+
+                cur.execute("UPDATE market_items SET current_price=? WHERE item_id=?", (round(new_price, 2), item_id))
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Market update error: {e}")
+
+        await asyncio.sleep(60) # Update every minute
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(market_update_loop())
 
 
 class LeaderboardSubmit(BaseModel):
@@ -166,6 +267,19 @@ class TradePayload(BaseModel):
 
 class AdvancePayload(BaseModel):
     token: str
+
+class BankPayload(BaseModel):
+    token: str
+    amount: float
+
+class BusinessPayload(BaseModel):
+    token: str
+    name: str
+
+class ItemTradePayload(BaseModel):
+    token: str
+    item_id: str
+    qty: int
 
 
 def require_api_key(x_api_key: Optional[str]):
@@ -223,6 +337,48 @@ def leaderboard_submit(payload: LeaderboardSubmit, x_api_key: Optional[str] = He
     conn.commit()
     conn.close()
     return {"ok": True}
+
+class TokenPayload(BaseModel):
+    token: str
+
+@app.post("/leaderboard/submit_web")
+def leaderboard_submit_web(payload: TokenPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    # Get current stats
+    cur.execute("SELECT cash, bank_balance, loan, days FROM users WHERE username=?", (username,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="用戶不存在")
+
+    cash = float(row["cash"])
+    bank_balance = float(row["bank_balance"])
+    loan = float(row["loan"])
+    days = int(row["days"])
+
+    # Simple portfolio value calculation
+    cur.execute("SELECT symbol, qty FROM portfolios WHERE username=?", (username,))
+    holdings = cur.fetchall()
+    prices = get_prices(conn)
+    portfolio_value = 0.0
+    for h in holdings:
+        portfolio_value += h[1] * prices.get(h[0], 0)
+
+    net_worth = cash + bank_balance - loan + portfolio_value
+
+    cur.execute(
+        """
+        INSERT INTO leaderboard (username, asset, days)
+        VALUES (?, ?, ?)
+        ON CONFLICT(username) DO UPDATE SET asset=excluded.asset, days=excluded.days
+        """,
+        (username, net_worth, days),
+    )
+    conn.commit()
+    conn.close()
+    return {"ok": True, "asset": net_worth, "days": days}
 
 
 @app.get("/leaderboard/top")
@@ -307,6 +463,154 @@ def auth_login(payload: LoginPayload):
     return {"token": token, "username": username}
 
 
+@app.post("/business/start")
+def business_start(payload: BusinessPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    # cost to start = 5000
+    start_cost = 5000.0
+    cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+    cash = cur.fetchone()["cash"]
+    if cash < start_cost:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現金不足以創業 (需要 $5000)")
+
+    cur.execute("UPDATE users SET cash=cash-? WHERE username=?", (start_cost, username))
+    cur.execute("INSERT INTO businesses(username, name, revenue_per_day, cost_per_day) VALUES(?,?,?,?)",
+                (username, payload.name, 200.0, 100.0))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.get("/business/list")
+def business_list(token: str):
+    username = get_username_by_token(token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id, name, level, revenue_per_day, cost_per_day FROM businesses WHERE username=?", (username,))
+    rows = cur.fetchall()
+    biz = [{"id": r[0], "name": r[1], "level": r[2], "revenue": r[3], "cost": r[4]} for r in rows]
+    conn.close()
+    return {"businesses": biz}
+
+@app.post("/market/buy")
+def market_buy(payload: ItemTradePayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT current_price, category FROM market_items WHERE item_id=?", (payload.item_id,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="商品不存在")
+
+    price = row["current_price"]
+    cost = price * payload.qty
+
+    cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+    cash = cur.fetchone()["cash"]
+    if cash < cost:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現金不足")
+
+    # Update cash
+    cur.execute("UPDATE users SET cash=cash-? WHERE username=?", (cost, username))
+
+    # Update inventory
+    cur.execute("SELECT qty, purchase_price FROM inventory WHERE username=? AND item_id=?", (username, payload.item_id))
+    inv_row = cur.fetchone()
+    if inv_row:
+        new_qty = inv_row["qty"] + payload.qty
+        # Average purchase price
+        new_price = (inv_row["qty"] * inv_row["purchase_price"] + cost) / new_qty
+        cur.execute("UPDATE inventory SET qty=?, purchase_price=? WHERE username=? AND item_id=?", (new_qty, new_price, username, payload.item_id))
+    else:
+        cur.execute("INSERT INTO inventory(username, item_id, qty, purchase_price) VALUES(?,?,?,?)", (username, payload.item_id, payload.qty, price))
+
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/market/sell")
+def market_sell(payload: ItemTradePayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT qty FROM inventory WHERE username=? AND item_id=?", (username, payload.item_id))
+    inv_row = cur.fetchone()
+    if not inv_row or inv_row["qty"] < payload.qty:
+        conn.close()
+        raise HTTPException(status_code=400, detail="物品不足")
+
+    cur.execute("SELECT current_price FROM market_items WHERE item_id=?", (payload.item_id,))
+    price = cur.fetchone()["current_price"]
+    proceeds = price * payload.qty
+
+    # Update cash
+    cur.execute("UPDATE users SET cash=cash+? WHERE username=?", (proceeds, username))
+
+    # Update inventory
+    if inv_row["qty"] == payload.qty:
+        cur.execute("DELETE FROM inventory WHERE username=? AND item_id=?", (username, payload.item_id))
+    else:
+        cur.execute("UPDATE inventory SET qty=qty-? WHERE username=? AND item_id=?", (payload.qty, username, payload.item_id))
+
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.get("/inventory/list")
+def inventory_list(token: str):
+    username = get_username_by_token(token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT i.item_id, m.name, i.qty, i.purchase_price, m.current_price, m.category
+        FROM inventory i
+        JOIN market_items m ON i.item_id = m.item_id
+        WHERE i.username=?
+    """, (username,))
+    rows = cur.fetchall()
+    inv = [{
+        "item_id": r[0],
+        "name": r[1],
+        "qty": r[2],
+        "purchase_price": r[3],
+        "current_price": r[4],
+        "category": r[5]
+    } for r in rows]
+    conn.close()
+    return {"inventory": inv}
+
+@app.post("/business/upgrade")
+def business_upgrade(token: str, business_id: int):
+    username = get_username_by_token(token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT level, username FROM businesses WHERE id=?", (business_id,))
+    row = cur.fetchone()
+    if not row or row["username"] != username:
+        conn.close()
+        raise HTTPException(status_code=404, detail="事業不存在")
+
+    level = row["level"]
+    upgrade_cost = 1000.0 * level
+
+    cur.execute("SELECT cash FROM users WHERE username=?", (username,))
+    cash = cur.fetchone()["cash"]
+    if cash < upgrade_cost:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"現金不足以升級 (需要 ${upgrade_cost})")
+
+    cur.execute("UPDATE users SET cash=cash-? WHERE username=?", (upgrade_cost, username))
+    cur.execute("UPDATE businesses SET level=level+1, revenue_per_day=revenue_per_day*1.5 WHERE id=?", (business_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
 @app.get("/game/state")
 def game_state(token: str):
     username = get_username_by_token(token)
@@ -314,9 +618,12 @@ def game_state(token: str):
     cur = conn.cursor()
     ensure_user(conn, username)
     # user
-    cur.execute("SELECT cash, days FROM users WHERE username= ?", (username,))
+    cur.execute("SELECT cash, bank_balance, loan, travel_distance, days FROM users WHERE username= ?", (username,))
     row = cur.fetchone()
     cash = float(row["cash"]) if row else 0.0
+    bank_balance = float(row["bank_balance"]) if row else 0.0
+    loan = float(row["loan"]) if row else 0.0
+    travel_distance = float(row["travel_distance"]) if row else 0.0
     days = int(row["days"]) if row else 0
     # portfolio
     cur.execute("SELECT symbol, qty, avg_cost FROM portfolios WHERE username= ?", (username,))
@@ -331,7 +638,18 @@ def game_state(token: str):
             portfolio_value += h["qty"] * float(prices[sym])
     net_worth = cash + portfolio_value
     conn.close()
-    return {"username": username, "cash": cash, "days": days, "holdings": holdings, "prices": prices, "portfolio_value": round(portfolio_value, 2), "net_worth": round(net_worth, 2)}
+    return {
+        "username": username,
+        "cash": cash,
+        "bank_balance": bank_balance,
+        "loan": loan,
+        "travel_distance": travel_distance,
+        "days": days,
+        "holdings": holdings,
+        "prices": prices,
+        "portfolio_value": round(portfolio_value, 2),
+        "net_worth": round(cash + bank_balance - loan + portfolio_value, 2)
+    }
 
 
 @app.get("/stocks/list")
@@ -340,6 +658,16 @@ def stocks_list() -> Dict[str, Any]:
     prices = get_prices(conn)
     conn.close()
     return {"prices": prices}
+
+@app.get("/market/items")
+def market_items_list() -> Dict[str, Any]:
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT item_id, name, current_price, category FROM market_items")
+    rows = cur.fetchall()
+    items = [{"item_id": r[0], "name": r[1], "price": r[2], "category": r[3]} for r in rows]
+    conn.close()
+    return {"items": items}
 
 
 @app.post("/stocks/tick")
@@ -441,22 +769,108 @@ def stocks_sell(payload: TradePayload):
     return {"ok": True}
 
 
+@app.post("/bank/deposit")
+def bank_deposit(payload: BankPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT cash, bank_balance FROM users WHERE username=?", (username,))
+    row = cur.fetchone()
+    if row["cash"] < payload.amount:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現金不足")
+    cur.execute("UPDATE users SET cash=cash-?, bank_balance=bank_balance+? WHERE username=?", (payload.amount, payload.amount, username))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/bank/withdraw")
+def bank_withdraw(payload: BankPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT bank_balance FROM users WHERE username=?", (username,))
+    row = cur.fetchone()
+    if row["bank_balance"] < payload.amount:
+        conn.close()
+        raise HTTPException(status_code=400, detail="銀行存款不足")
+    cur.execute("UPDATE users SET cash=cash+?, bank_balance=bank_balance-? WHERE username=?", (payload.amount, payload.amount, username))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/bank/loan")
+def bank_loan(payload: BankPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    # simple loan logic: max loan = net worth * 0.5
+    # for simplicity, just allow it here
+    cur.execute("UPDATE users SET cash=cash+?, loan=loan+? WHERE username=?", (payload.amount, payload.amount, username))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+@app.post("/bank/repay")
+def bank_repay(payload: BankPayload):
+    username = get_username_by_token(payload.token)
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT cash, loan FROM users WHERE username=?", (username,))
+    row = cur.fetchone()
+    amount = min(payload.amount, row["loan"])
+    if row["cash"] < amount:
+        conn.close()
+        raise HTTPException(status_code=400, detail="現金不足")
+    cur.execute("UPDATE users SET cash=cash-?, loan=loan-? WHERE username=?", (amount, amount, username))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
 @app.post("/tick/advance")
 def tick_advance(payload: AdvancePayload):
     username = get_username_by_token(payload.token)
     conn = get_db()
     cur = conn.cursor()
     ensure_user(conn, username)
-    # advance user day
-    cur.execute("SELECT days FROM users WHERE username=?", (username,))
-    days = int(cur.fetchone()["days"]) + 1
-    cur.execute("UPDATE users SET days=? WHERE username=?", (days, username))
-    # update prices (random walk)
-    cur.execute("SELECT symbol, price FROM stocks")
-    rows = cur.fetchall()
-    for r in rows:
-        newp = update_price_random_walk(float(r["price"]))
-        cur.execute("UPDATE stocks SET price=? WHERE symbol=?", (newp, r["symbol"]))
+
+    # Get current user data
+    cur.execute("SELECT cash, bank_balance, loan, travel_distance, days FROM users WHERE username=?", (username,))
+    row = cur.fetchone()
+    cash = float(row["cash"])
+    bank_balance = float(row["bank_balance"])
+    loan = float(row["loan"])
+    travel_distance = float(row["travel_distance"])
+    days = int(row["days"]) + 1
+
+    # Apply interest
+    # 0.1% daily interest for bank_balance
+    bank_balance *= 1.0001
+    # 0.05% daily interest for loan
+    loan *= 1.0005
+
+    # Process businesses
+    cur.execute("SELECT revenue_per_day, cost_per_day FROM businesses WHERE username=?", (username,))
+    biz_rows = cur.fetchall()
+    biz_net = 0.0
+    for b in biz_rows:
+        biz_net += (float(b[0]) - float(b[1]))
+
+    cash += biz_net
+
+    # Travel logic
+    cur.execute("SELECT item_id FROM inventory WHERE username=? AND item_id LIKE 'CAR%'", (username,))
+    has_car = cur.fetchone()
+    if has_car:
+        travel_distance += 10.0 # Gain 10km per day if has car
+    else:
+        travel_distance += 1.0  # Gain 1km per day on foot
+
+    # Update user
+    cur.execute("UPDATE users SET cash=?, bank_balance=?, loan=?, travel_distance=?, days=? WHERE username=?", (cash, bank_balance, loan, travel_distance, days, username))
+
+    # Note: Stock price update moved to a global background task for "synced prices"
+
     conn.commit()
     conn.close()
     return {"ok": True, "days": days}

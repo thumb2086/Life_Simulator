@@ -214,6 +214,10 @@ class IntegrationTestSuite:
             # 測試載入API
             load_data = self.data_manager.load_game_data(username, 'default', 'web')
 
+            # 重置成就狀態以進行測試 (解決 Manager 單例狀態共享問題)
+            for a in self.achievement_manager.achievements:
+                a.unlocked = False
+
             # 測試成就檢查API
             achievements = self.achievement_manager.check_achievements(load_data, username)
 

@@ -23,63 +23,101 @@
         <label for="username">使用者名稱</label>
         <input id="username" placeholder="輸入使用者名稱" />
       </div>
-      <button id="btn-login">登入</button>
+      <button id="btn-login" class="btn-primary">登入</button>
       <div id="login-status" class="muted"></div>
     </section>
 
     <section id="game-section" style="display:none;">
-      <h2>玩家資訊</h2>
-      <div class="grid">
-        <div class="card">
+      <div class="card player-card">
+        <div class="player-info">
           <div>使用者：<b id="u-name"></b></div>
-          <div>現金：<b id="u-cash"></b></div>
           <div>天數：<b id="u-days"></b></div>
+          <div>現金：<b id="u-cash"></b></div>
+          <div>銀行存款：<b id="u-bank"></b></div>
+          <div>貸款：<b id="u-loan"></b></div>
+          <div>移動距離：<b id="u-dist"></b> km</div>
           <div>淨資產：<b id="u-net"></b></div>
-          <button id="btn-advance">推進一天</button>
-          <span id="advance-status" class="muted"></span>
-          <div class="row" style="margin-top:8px;">
-            <button id="btn-submit-lb">提交排行榜</button>
-            <span id="submit-status" class="muted"></span>
-          </div>
         </div>
+        <div class="player-actions">
+          <button id="btn-advance" class="btn-primary">推進一天 (結算收益與利息)</button>
+          <button id="btn-submit-lb" class="btn-secondary">提交排行榜</button>
+        </div>
+        <div id="advance-status" class="muted"></div>
       </div>
 
-      <h2>股票</h2>
-      <div class="grid">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="finance">金融 (股票/銀行)</button>
+        <button class="tab-btn" data-tab="company">創業</button>
+        <button class="tab-btn" data-tab="market">市場 (商品/投資物)</button>
+        <button class="tab-btn" data-tab="inventory">庫存</button>
+      </div>
+
+      <div id="tab-finance" class="tab-content active">
+        <div class="grid">
+          <div class="card">
+            <h3>銀行服務</h3>
+            <div class="row">
+              <input id="bank-amount" type="number" placeholder="金額" />
+              <button id="btn-deposit">存款</button>
+              <button id="btn-withdraw">提款</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="btn-loan">借貸</button>
+              <button id="btn-repay">還款</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>股票價格</h3>
+            <table id="tbl-prices">
+              <thead><tr><th>股票</th><th>價格</th><th>操作</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
         <div class="card">
-          <h3>持倉</h3>
+          <h3>股票持倉</h3>
           <table id="tbl-holdings">
-            <thead><tr><th>股票</th><th>數量</th><th>均價</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="card">
-          <h3>價格</h3>
-          <table id="tbl-prices">
-            <thead><tr><th>股票</th><th>價格</th></tr></thead>
+            <thead><tr><th>股票</th><th>數量</th><th>均價</th><th>現價</th><th>盈虧</th><th>操作</th></tr></thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
 
-      <div class="grid">
+      <div id="tab-company" class="tab-content">
         <div class="card">
-          <h3>買入</h3>
+          <h3>創立新事業</h3>
           <div class="row">
-            <input id="buy-symbol" placeholder="如 AAPL" />
-            <input id="buy-qty" type="number" min="0" step="1" placeholder="數量" />
-            <button id="btn-buy">買入</button>
+            <input id="biz-name" placeholder="事業名稱" />
+            <button id="btn-start-biz">創業 (需 $5000)</button>
           </div>
-          <div id="buy-status" class="muted"></div>
+          <div id="biz-status" class="muted"></div>
         </div>
         <div class="card">
-          <h3>賣出</h3>
-          <div class="row">
-            <input id="sell-symbol" placeholder="如 AAPL" />
-            <input id="sell-qty" type="number" min="0" step="1" placeholder="數量" />
-            <button id="btn-sell">賣出</button>
-          </div>
-          <div id="sell-status" class="muted"></div>
+          <h3>我的事業</h3>
+          <table id="tbl-businesses">
+            <thead><tr><th>名稱</th><th>等級</th><th>每日營收</th><th>每日成本</th><th>淨利</th><th>操作</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="tab-market" class="tab-content">
+        <div class="card">
+          <h3>市場商品</h3>
+          <table id="tbl-market-items">
+            <thead><tr><th>商品</th><th>類別</th><th>價格</th><th>操作</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="tab-inventory" class="tab-content">
+        <div class="card">
+          <h3>我的庫存</h3>
+          <table id="tbl-inventory">
+            <thead><tr><th>物品</th><th>類別</th><th>數量</th><th>買入均價</th><th>現價</th><th>盈虧</th><th>操作</th></tr></thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
     </section>

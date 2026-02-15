@@ -7,6 +7,10 @@
   "loan_interest_rate": 0.005,
   "active_buffs": [],
   "current_difficulty": "normal",
+  "portfolio": "<modules.stock_portfolio.StockPortfolio object at 0x7f626d7e1a90>",
+  "btc_balance": 0.0,
+  "happiness": 85,
+  "transaction_history": [],
   "stocks": {
     "TSMC": {
       "name": "台積電",
@@ -21,8 +25,7 @@
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "HONHAI": {
       "name": "鴻海",
@@ -37,8 +40,7 @@
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "MTK": {
       "name": "聯發科",
@@ -53,8 +55,7 @@
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "MINING": {
       "name": "挖礦公司",
@@ -69,8 +70,7 @@
       "sell_points": [],
       "dividend_per_share": 2,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "FARM": {
       "name": "農業公司",
@@ -85,8 +85,7 @@
       "sell_points": [],
       "dividend_per_share": 1.5,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "FOREST": {
       "name": "林業公司",
@@ -101,8 +100,7 @@
       "sell_points": [],
       "dividend_per_share": 1.2,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "RETAIL": {
       "name": "零售連鎖",
@@ -117,8 +115,7 @@
       "sell_points": [],
       "dividend_per_share": 1,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "RESTAURANT": {
       "name": "餐飲集團",
@@ -133,8 +130,7 @@
       "sell_points": [],
       "dividend_per_share": 0.8,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "TRAVEL": {
       "name": "旅遊公司",
@@ -149,8 +145,7 @@
       "sell_points": [],
       "dividend_per_share": 0.9,
       "dividend_interval": 30,
-      "next_dividend_day": 30,
-      "drip": false
+      "next_dividend_day": 30
     },
     "BTC": {
       "name": "比特幣",
@@ -165,28 +160,12 @@
       "sell_points": [],
       "dividend_per_share": 0,
       "dividend_interval": 0,
-      "next_dividend_day": 0,
-      "drip": false
+      "next_dividend_day": 0
     }
   },
-  "btc_balance": 0.0,
-  "btc_miner_count": 0,
-  "btc_hashrate": 0.0,
-  "market_volatility": 0.01,
-  "btc_mining_rate_per_kh": 0.001,
-  "btc_price_volatility_sigma": 0.003,
-  "transaction_history": [],
-  "last_slot_win": 0,
   "achievements_unlocked": [],
   "days": 365,
-  "happiness": 85,
-  "stamina": 50,
-  "intelligence": 80,
-  "diligence": 50,
-  "charisma": 50,
-  "experience": 0,
-  "luck_today": 50,
-  "last_luck_day": -1,
+  "attributes": "<modules.player_attributes.PlayerAttributes object at 0x7f626d00c500>",
   "activity_rules": {
     "study": {
       "daily_max": 3,
@@ -1057,5 +1036,6 @@
     }
   },
   "futures_positions": [],
-  "futures_realized_pnl": 0.0
+  "futures_realized_pnl": 0.0,
+  "intelligence": 80
 }
