@@ -210,7 +210,7 @@ class EducationManager:
     def status_text(self) -> str:
         """Return formatted education status."""
         edu = self.data.education
-        skills = edu.get("skills", [])
+        skills = edu.get("skills", {})
         skill_str = ", ".join(f"{k} Lv.{v}" for k, v in skills.items()) if skills else "無"
         certs = edu.get("certifications", [])
         cert_str = ", ".join(certs) if certs else "無"

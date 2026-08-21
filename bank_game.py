@@ -121,6 +121,7 @@ class BankGame:
     def _life_action(self, msg):
         self.log_transaction(msg)
         self.update_display()
+        self.update_display()
 
     def _life_log(self, log_widget, msg):
         log_widget.config(state='normal')

@@ -106,7 +106,7 @@ class SocialManager:
                     if r["name"] == name:
                         r["closeness"] = min(100, r["closeness"] + 10)
                         soc["reputation"] = min(100, soc["reputation"] + 1)
-                        return f"與{ name}深化關係，親密度 +10。"
+                        return f"與{name}深化關係，親密度 +10。"
         soc["reputation"] = min(100, soc["reputation"] + 1)
         return "社交活動完成，聲望 +1。"
 
