@@ -170,6 +170,7 @@ class HousingManager:
             return f"現金不足，需要 ${cost:,.0f}。"
         self.data.cash -= cost
         house.setdefault("facilities", []).append(facility_name)
+        house['comfort'] = self._calc_comfort()
         return f"安裝{facility_name}（${cost:,.0f}），舒適度 +{fac['comfort_bonus']}。"
 
     def rent_property(self) -> str:
