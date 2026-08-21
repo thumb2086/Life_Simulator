@@ -5,8 +5,12 @@ from slot_machine import SlotMachine
 from achievements import AchievementsManager
 from events import EventManager
 from leaderboard import Leaderboard
+from health_manager import HealthManager
+from housing_manager import HousingManager
+from education_manager import EducationManager
+from social_manager import SocialManager
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, scrolledtext
 from datetime import datetime
 import time
 import random
@@ -33,7 +37,12 @@ class BankGame:
         self.event_manager = EventManager(self)
         self.leaderboard = Leaderboard()
         self.stock_manager = StockManager(self.data, self.log_transaction, self.update_display)
+        self.health_mgr = HealthManager(self.data)
+        self.housing_mgr = HousingManager(self.data)
+        self.edu_mgr = EducationManager(self.data)
+        self.social_mgr = SocialManager(self.data)
         self.create_ui()
+        self._build_life_tabs()
         # after() 計時器與 I/O 相關旗標/映射
         self._after_map = {}
         self._persist_scheduled = False
@@ -58,6 +67,65 @@ class BankGame:
         # 新增：自動綁定股票分頁內的 label
         self.stock_status_labels = getattr(self, 'stock_status_labels', {})
         self.stock_dividend_labels = getattr(self, 'stock_dividend_labels', {})
+        self._build_life_tabs()
+
+    def _build_life_tabs(self):
+        """Add health, housing, education, social tabs to the notebook."""
+        nb = self.main_tabs
+        FONT = ('Microsoft JhengHei', 11)
+        # --- Health Tab ---
+        health_tab = ttk.Frame(nb)
+        nb.add(health_tab, text='💪 健康')
+        self.health_status_lbl = ttk.Label(health_tab, text=self.health_mgr.status_text(), font=FONT)
+        self.health_status_lbl.pack(anchor='w', padx=10, pady=5)
+        hf = ttk.Frame(health_tab)
+        hf.pack(fill=tk.X, padx=10)
+        for txt, cmd in [('吃便當 $50', lambda: self._life_action(self.health_mgr.eat_meal(1))), ('吃大餐 $150', lambda: self._life_action(self.health_mgr.eat_meal(2))), ('高級料理 $400', lambda: self._life_action(self.health_mgr.eat_meal(3))), ('運動', lambda: self._life_action(self.health_mgr.exercise())), ('休息', lambda: self._life_action(self.health_mgr.rest())), ('冥想', lambda: self._life_action(self.health_mgr.meditate())), ('加入健身房', lambda: self._life_action(self.health_mgr.join_gym(1)))]:
+            ttk.Button(hf, text=txt, command=cmd).pack(side=tk.LEFT, padx=3, pady=3)
+        self.health_log = scrolledtext.ScrolledText(health_tab, height=10, font=FONT, state='disabled')
+        self.health_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # --- Housing Tab ---
+        housing_tab = ttk.Frame(nb)
+        nb.add(housing_tab, text='🏠 住房')
+        self.housing_status_lbl = ttk.Label(housing_tab, text=self.housing_mgr.status_text(), font=FONT)
+        self.housing_status_lbl.pack(anchor='w', padx=10, pady=5)
+        hof = ttk.Frame(housing_tab)
+        hof.pack(fill=tk.X, padx=10)
+        for txt, cmd in [('租屋', lambda: self._life_action(self.housing_mgr.rent_property())), ('買小套房', lambda: self._life_action(self.housing_mgr.buy_property('小套房'))), ('買公寓', lambda: self._life_action(self.housing_mgr.buy_property('公寓'))), ('買透天', lambda: self._life_action(self.housing_mgr.buy_property('透天'))), ('安裝冷氣', lambda: self._life_action(self.housing_mgr.install_facility('冷氣'))), ('賣房', lambda: self._life_action(self.housing_mgr.sell_property()))]:
+            ttk.Button(hof, text=txt, command=cmd).pack(side=tk.LEFT, padx=3, pady=3)
+        self.housing_log = scrolledtext.ScrolledText(housing_tab, height=10, font=FONT, state='disabled')
+        self.housing_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # --- Education Tab ---
+        edu_tab = ttk.Frame(nb)
+        nb.add(edu_tab, text='📚 教育')
+        self.edu_status_lbl = ttk.Label(edu_tab, text=self.edu_mgr.status_text(), font=FONT)
+        self.edu_status_lbl.pack(anchor='w', padx=10, pady=5)
+        ef = ttk.Frame(edu_tab)
+        ef.pack(fill=tk.X, padx=10)
+        for txt, cmd in [('讀專科', lambda: self._life_action(self.edu_mgr.study_degree('專科'))), ('讀學士', lambda: self._life_action(self.edu_mgr.study_degree('學士'))), ('讀碩士', lambda: self._life_action(self.edu_mgr.study_degree('碩士'))), ('學程式', lambda: self._life_action(self.edu_mgr.learn_skill('程式', '基礎'))), ('考PMP', lambda: self._life_action(self.edu_mgr.get_certification('PMP'))), ('辭職', lambda: self._life_action(self.edu_mgr.quit_job()))]:
+            ttk.Button(ef, text=txt, command=cmd).pack(side=tk.LEFT, padx=3, pady=3)
+        self.edu_log = scrolledtext.ScrolledText(edu_tab, height=10, font=FONT, state='disabled')
+        self.edu_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # --- Social Tab ---
+        social_tab = ttk.Frame(nb)
+        nb.add(social_tab, text='👥 社交')
+        self.social_status_lbl = ttk.Label(social_tab, text=self.social_mgr.status_text(), font=FONT)
+        self.social_status_lbl.pack(anchor='w', padx=10, pady=5)
+        sf = ttk.Frame(social_tab)
+        sf.pack(fill=tk.X, padx=10)
+        for txt, cmd in [('參加聚會', lambda: self._life_action(self.social_mgr.attend_event('商業聚會'))), ('參加晚宴', lambda: self._life_action(self.social_mgr.attend_event('慈善晚宴'))), ('同學會', lambda: self._life_action(self.social_mgr.attend_event('同學會'))), ('拓展人脈', lambda: self._life_action(self.social_mgr.network())), ('送禮物', lambda: self._life_action(self.social_mgr.give_gift()))]:
+            ttk.Button(sf, text=txt, command=cmd).pack(side=tk.LEFT, padx=3, pady=3)
+        self.social_log = scrolledtext.ScrolledText(social_tab, height=10, font=FONT, state='disabled')
+        self.social_log.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+    def _life_action(self, msg):
+        self.log_transaction(msg)
+        self.update_display()
+
+    def _life_log(self, log_widget, msg):
+        log_widget.config(state='normal')
+        log_widget.insert('1.0', msg + '\n')
+        log_widget.config(state='disabled')
 
     # --- 偵錯工具 ---
     def debug_log(self, msg):
@@ -156,6 +224,15 @@ class BankGame:
         self.update_job_ui()
         # 更新支出清單 UI
         self.update_expenses_ui()
+        # Update life system labels
+        if hasattr(self, 'health_status_lbl'):
+            self.health_status_lbl.config(text=self.health_mgr.status_text())
+        if hasattr(self, 'housing_status_lbl'):
+            self.housing_status_lbl.config(text=self.housing_mgr.status_text())
+        if hasattr(self, 'edu_status_lbl'):
+            self.edu_status_lbl.config(text=self.edu_mgr.status_text())
+        if hasattr(self, 'social_status_lbl'):
+            self.social_status_lbl.config(text=self.social_mgr.status_text())
         self.update_charts()
         self.update_achievements_list()
         # 將頻繁 I/O 轉為延遲合併寫入
@@ -335,6 +412,13 @@ class BankGame:
                 except Exception as e:
                     self.debug_log(f"expense deduction error: {e}")
                 self.data.days += 1
+                # Life simulation daily processing
+                try:
+                    for msg in [self.health_mgr.process_daily(), self.housing_mgr.process_daily(), self.edu_mgr.process_daily(), self.social_mgr.process_daily()]:
+                        if msg:
+                            self.log_transaction(msg)
+                except Exception as e:
+                    self.debug_log(f'life systems error: {e}')
                 for code, stock in self.data.stocks.items():
                     if self.data.days >= stock.get('next_dividend_day', 30):
                         if stock['owned'] > 0 and stock.get('dividend_per_share', 0) > 0:

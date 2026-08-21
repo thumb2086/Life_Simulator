@@ -1,0 +1,8 @@
+# Life Simulator - Desktop Version Dependencies
+# Install: pip install -r requirements-desktop.txt
+
+# Core
+matplotlib>=3.5.0
+
+# Build (for compiling to exe)
+pyinstaller>=5.0

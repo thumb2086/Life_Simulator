@@ -54,6 +54,30 @@ class GameData:
         self.expenses = []
         # 支出歷史：[{day, name, amount}]
         self.expense_history = []
+        # --- Life Simulation Systems ---
+        # Health
+        self.health = {
+            'energy': 100, 'max_energy': 100, 'mood': 70, 'stress': 20,
+            'fitness': 30, 'nutrition': 50, 'health_points': 80,
+            'sick_days': 0, 'gym_level': 0, 'meal_quality': 1,
+        }
+        # Housing
+        self.housing = {
+            'type': '租屋', 'level': 0, 'monthly_rent': 0, 'mortgage': 0.0,
+            'property_value': 0.0, 'location': '一般', 'comfort': 30,
+            'storage': 0, 'facilities': [],
+        }
+        # Education
+        self.education = {
+            'degree': '高中', 'skills': {}, 'job_title': '無業',
+            'base_salary': 0, 'experience': 0, 'certifications': [],
+            'study_hours': 0, 'tuition_debt': 0.0,
+        }
+        # Social
+        self.social = {
+            'reputation': 10, 'relationships': [], 'network_size': 0,
+            'friendships': 0, 'influence': 0, 'events_attended': 0,
+        }
 
     def save(self, file_path, show_error=None):
         import json
@@ -132,6 +156,15 @@ class GameData:
                 self.expenses = []
             if not hasattr(self, 'expense_history'):
                 self.expense_history = []
+            # --- 補齊 Life Simulation 欄位 ---
+            if not hasattr(self, 'health'):
+                self.health = {'energy': 100, 'max_energy': 100, 'mood': 70, 'stress': 20, 'fitness': 30, 'nutrition': 50, 'health_points': 80, 'sick_days': 0, 'gym_level': 0, 'meal_quality': 1}
+            if not hasattr(self, 'housing'):
+                self.housing = {'type': '租屋', 'level': 0, 'monthly_rent': 0, 'mortgage': 0.0, 'property_value': 0.0, 'location': '一般', 'comfort': 30, 'storage': 0, 'facilities': []}
+            if not hasattr(self, 'education'):
+                self.education = {'degree': '高中', 'skills': {}, 'job_title': '無業', 'base_salary': 0, 'experience': 0, 'certifications': [], 'study_hours': 0, 'tuition_debt': 0.0}
+            if not hasattr(self, 'social'):
+                self.social = {'reputation': 10, 'relationships': [], 'network_size': 0, 'friendships': 0, 'influence': 0, 'events_attended': 0}
 
             if hasattr(self, 'achievements_manager'):
                 self.achievements_manager.__init__(self, self.achievements_unlocked) # 重新初始化成就管理器

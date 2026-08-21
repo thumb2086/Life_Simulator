@@ -1,0 +1,61 @@
+name: Build Life Simulator
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-desktop.txt
+
+      - name: Build exe with PyInstaller
+        run: |
+          pyinstaller "新股票銀行遊戲.spec" --clean --noconfirm
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Life-Simulator-Windows
+          path: dist/新股票銀行遊戲/
+          retention-days: 30
+
+  build-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Life-Simulator-Windows
+          path: dist/新股票銀行遊戲/
+
+      - name: Create ZIP archive
+        run: |
+          Compress-Archive -Path dist/新股票銀行遊戲/* -DestinationPath Life-Simulator-${{ github.ref_name }}.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Life-Simulator-${{ github.ref_name }}.zip
+          generate_release_notes: true
