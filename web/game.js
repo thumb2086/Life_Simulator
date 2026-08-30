@@ -16,6 +16,7 @@ const BUILDINGS = [
   { id: 'park',    label: '公園',     x: 250, y: 280, w: 120, h: 80,  color: 0x4CAF50, icon: '🌳' },
   { id: 'cafe',    label: '咖啡廳',   x: 550, y: 280, w: 120, h: 80,  color: 0x795548, icon: '☕' },
   { id: 'market',  label: '市場',     x: 400, y: 280, w: 100, h: 70,  color: 0xFFC107, icon: '🛒' },
+  { id: 'casino',  label: '拉霸機',   x: 250, y: 120, w: 120, h: 80,  color: 0xFF5722, icon: '🎰' },
 ];
 
 // ── Game state ──────────────────────────────────────────────────────
@@ -101,6 +102,10 @@ function updatePanel() {
     <div class="stat-row"><span class="stat-label">算力</span><span class="stat-value">${s.btc_hashrate} kh</span></div>
     ` : ''}
   `;
+
+  // Load achievements and leaderboard async
+  loadAchievements();
+  loadLeaderboard();
 }
 
 function showBuildingActions(building) {
@@ -185,6 +190,14 @@ function showBuildingActions(building) {
       <button class="action-btn success" onclick="doAction('/api/social/gift',{target:'朋友'})">買禮物送朋友</button>
       <button class="action-btn" onclick="doAction('/api/social/gift',{target:'同事'})">買禮物送同事</button>
     `,
+    casino: `
+      <div class="section-title" style="font-size:13px">🎰 拉霸機</div>
+      <button class="action-btn success" onclick="spinSlot('steady',50)">穩健機 $50</button>
+      <button class="action-btn success" onclick="spinSlot('steady',100)">穩健機 $100</button>
+      <button class="action-btn success" onclick="spinSlot('high_risk',100)">高風險機 $100</button>
+      <button class="action-btn success" onclick="spinSlot('high_risk',500)">高風險機 $500</button>
+      <div id="slot-result" style="margin-top:8px;color:#f0c040;font-size:13px"></div>
+    `,
   };
 
   actions.innerHTML = btns[building.id] || '<p style="color:#889">無可用動作</p>';
@@ -211,6 +224,67 @@ function bar(val, max) {
   const pct = Math.round((val / max) * 100);
   const filled = Math.round(val / max * 10);
   return '█'.repeat(filled) + '░'.repeat(10 - filled) + ` ${Math.round(val)}`;
+}
+
+// ── Slot Machine ─────────────────────────────────────────────
+async function spinSlot(machineId, bet) {
+  const el = document.getElementById('slot-result');
+  if (el) el.innerHTML = '<span style="color:#e94560">Spinning...</span>';
+  try {
+    const result = await doAction('/api/slot/spin', { machine_id: machineId, bet });
+    if (el) {
+      const color = result.winnings > 0 ? '#4ecca3' : '#e94560';
+      el.innerHTML = `<span style="color:${color}">${result.message}</span>`;
+    }
+    if (result.newly_unlocked && result.newly_unlocked.length > 0) {
+      result.newly_unlocked.forEach(a => showEvent(`⭐ 成就解鎖: ${a}`));
+    }
+  } catch (e) {
+    if (el) el.innerHTML = `<span style="color:#e94560">${e.message}</span>`;
+  }
+}
+
+// ── Achievements ─────────────────────────────────────────────
+async function loadAchievements() {
+  try {
+    const res = await api('/api/achievements');
+    const section = document.getElementById('events-section');
+    const achHtml = res.achievements.map(a =>
+      `<div style="padding:3px 0;border-bottom:1px solid #1a1a2e;font-size:12px">
+        <span style="color:${a.unlocked ? '#4ecca3' : '#555'}">${a.unlocked ? '⭐' : '○'} ${a.name}</span>
+        <span style="color:#666;font-size:11px"> ${a.description}</span>
+      </div>`
+    ).join('');
+    // Always update achievements section
+    let achContainer = document.getElementById('ach-container');
+    if (!achContainer) {
+      achContainer = document.createElement('div');
+      achContainer.id = 'ach-container';
+      section.prepend(achContainer);
+    }
+    achContainer.innerHTML = `<div class="section-title">⭐ 成就 (${res.achievements.filter(a=>a.unlocked).length}/${res.achievements.length})</div>${achHtml}`;
+  } catch (e) {}
+}
+
+// ── Leaderboard ──────────────────────────────────────────────
+async function loadLeaderboard() {
+  try {
+    const res = await api('/api/leaderboard');
+    if (res.leaderboard && res.leaderboard.length > 0) {
+      const lbHtml = res.leaderboard.slice(0, 5).map((r, i) =>
+        `<div style="padding:2px 0;font-size:12px;border-bottom:1px solid #1a1a2e">
+          <span style="color:#f0c040">#${i+1}</span> ${r.username} - $${fmt(r.asset)} (${r.days}d)
+        </div>`
+      ).join('');
+      let lbContainer = document.getElementById('lb-container');
+      if (!lbContainer) {
+        lbContainer = document.createElement('div');
+        lbContainer.id = 'lb-container';
+        document.getElementById('events-section').appendChild(lbContainer);
+      }
+      lbContainer.innerHTML = `<div style="margin-top:8px"><div class="section-title">🏆 排行榜</div>${lbHtml}</div>`;
+    }
+  } catch (e) {}
 }
 
 // ── Phaser Game ─────────────────────────────────────────────────────
@@ -330,26 +404,71 @@ function create() {
     buildingSprites.push({ data: b, container, body });
   });
 
-  // ── Character ─────────────────────────────────────────────
+  // ── Character (4-directional animated) ───────────────────
+  scene.charDir = 'down'; // down, up, left, right
+  scene.charFrame = 0;
+  scene.charAnimTimer = 0;
+
+  scene.drawChar = function(dir, frame) {
+    const g = scene.charGraphics;
+    g.clear();
+    const bobY = (frame % 2 === 1) ? -2 : 0; // walking bob
+    const legOffset = (frame % 2 === 1) ? 3 : -3;
+
+    // Shadow
+    g.fillStyle(0x000000, 0.2);
+    g.fillEllipse(0, 16, 18, 6);
+
+    // Legs
+    g.fillStyle(0x2c3e50, 1);
+    g.fillCircle(-4, 12 + legOffset, 3);
+    g.fillCircle(4, 12 - legOffset, 3);
+
+    // Body
+    g.fillStyle(0x3498db, 1);
+    g.fillRoundedRect(-8, -4 + bobY, 16, 16, 4);
+n    // Head
+    g.fillStyle(0xf5cba7, 1);
+    g.fillCircle(0, -10 + bobY, 9);
+
+    // Hair
+    g.fillStyle(0x5d4037, 1);
+    g.fillRoundedRect(-8, -18 + bobY, 16, 8, { tl: 8, tr: 8, bl: 2, br: 2 });
+
+    // Face direction indicator (eyes)
+    g.fillStyle(0x000000, 1);
+    if (dir === 'down') {
+      g.fillCircle(-3, -10 + bobY, 1.5);
+      g.fillCircle(3, -10 + bobY, 1.5);
+      // Mouth
+      g.lineStyle(1, 0x000000, 0.5);
+      g.lineBetween(-2, -6 + bobY, 2, -6 + bobY);
+    } else if (dir === 'up') {
+      // Back of head - no face visible
+    } else if (dir === 'left') {
+      g.fillCircle(-4, -10 + bobY, 1.5);
+    } else if (dir === 'right') {
+      g.fillCircle(4, -10 + bobY, 1.5);
+    }
+
+    // Armsn    g.fillStyle(0xf5cba7, 1);
+    if (frame % 2 === 1) {
+      g.fillCircle(-10, 2 + bobY, 3);
+      g.fillCircle(10, 0 + bobY, 3);
+    } else {
+      g.fillCircle(-10, 0 + bobY, 3);
+      g.fillCircle(10, 2 + bobY, 3);
+    }
+  };
+
   const charGfx = scene.add.graphics();
-  // Body
-  charGfx.fillStyle(0x3498db, 1);
-  charGfx.fillCircle(0, 5, 10);
-  // Head
-  charGfx.fillStyle(0xf5cba7, 1);
-  charGfx.fillCircle(0, -10, 8);
-  // Eyes
-  charGfx.fillStyle(0x000000, 1);
-  charGfx.fillCircle(-3, -11, 1.5);
-  charGfx.fillCircle(3, -11, 1.5);
-
-  characterSprite = scene.add.sprite(450, 480, '__DEFAULT');
-  characterSprite.setVisible(false);  // hide default
-
-  // Use graphics as character
   charGfx.setPosition(450, 480);
   charGfx.setDepth(10);
   scene.charGraphics = charGfx;
+  scene.drawChar('down', 0);
+
+  characterSprite = scene.add.sprite(450, 480, '__DEFAULT');
+  characterSprite.setVisible(false);
 
   // Name tag
   const nameTag = scene.add.text(450, 460, '主角', {
@@ -357,6 +476,11 @@ function create() {
     color: '#ffffff', stroke: '#000000', strokeThickness: 2,
   }).setOrigin(0.5).setDepth(11);
   scene.nameTag = nameTag;
+
+  // Interaction effect overlay
+  scene.interactFx = scene.add.graphics();
+  scene.interactFx.setDepth(15);
+  scene.interactFx.setVisible(false);
 
   // ── HUD (top bar) ────────────────────────────────────────
   const hudBg = scene.add.graphics();
@@ -451,6 +575,7 @@ function update(time, delta) {
 
   const char = scene.charGraphics;
   const tag = scene.nameTag;
+  let isMoving = false;
 
   if (targetPos) {
     const dx = targetPos.x - char.x;
@@ -460,12 +585,40 @@ function update(time, delta) {
       const speed = 2.5;
       char.x += (dx / dist) * speed;
       char.y += (dy / dist) * speed;
-      tag.x = char.x;
-      tag.y = char.y - 20;
+      isMoving = true;
+
+      // Determine facing direction
+      if (Math.abs(dx) > Math.abs(dy)) {
+        scene.charDir = dx > 0 ? 'right' : 'left';
+      } else {
+        scene.charDir = dy > 0 ? 'down' : 'up';
+      }
     } else {
+      // Arrived at target — trigger building interaction if applicable
+      if (selectedBuilding) {
+        showBuildingInteractionFx(scene, selectedBuilding);
+      }
       targetPos = null;
     }
   }
+
+  // Animate walking frames
+  if (isMoving) {
+    scene.charAnimTimer += delta;
+    if (scene.charAnimTimer > 180) { // ~5.5 fps walk cycle
+      scene.charFrame = (scene.charFrame + 1) % 4;
+      scene.charAnimTimer = 0;
+    }
+  } else {
+    scene.charFrame = 0;
+    scene.charAnimTimer = 0;
+  }
+  scene.drawChar(scene.charDir, scene.charFrame);
+
+  // Update character position
+  char.x = char.x; // already updated above
+  tag.x = char.x;
+  tag.y = char.y - 28;
 
   // Update HUD from gameState
   if (gameState) {
@@ -474,4 +627,34 @@ function update(time, delta) {
     hudTexts.assets.setText(`💰 Total: $${fmt(gameState.total_assets)}`);
     hudTexts.health.setText(`❤️ ${Math.round(gameState.health.energy)}/100`);
   }
+}
+
+// ── Building Interaction Effect ──────────────────────────────
+function showBuildingInteractionFx(scene, building) {
+  const fx = scene.interactFx;
+  if (!fx) return;
+  fx.setVisible(true);
+  fx.clear();
+
+  // Expanding ring effect
+  let radius = 5;
+  let alpha = 0.8;
+  const maxRadius = Math.max(building.w, building.h) * 0.7;
+
+  const timer = scene.time.addEvent({
+    delay: 30,
+    repeat: 20,
+    callback: () => {
+      fx.clear();
+      fx.lineStyle(2, 0xe94560, alpha);
+      fx.strokeCircle(building.x, building.y, radius);
+      radius += (maxRadius - 5) / 20;
+      alpha -= 0.04;
+      if (alpha <= 0) {
+        fx.setVisible(false);
+        fx.clear();
+        timer.destroy();
+      }
+    },
+  });
 }

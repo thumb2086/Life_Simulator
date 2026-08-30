@@ -19,6 +19,8 @@ from health_manager import HealthManager
 from housing_manager import HousingManager
 from education_manager import EducationManager
 from social_manager import SocialManager
+from achievements import AchievementsManager
+from leaderboard import Leaderboard
 
 app = FastAPI(title="Life Simulator API", version="1.0.0")
 
@@ -31,16 +33,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SAVE_DIR = os.path.join(os.path.dirname(__file__), "saves")
+os.makedirs(SAVE_DIR, exist_ok=True)
+
 # ── Game State (single session) ──────────────────────────────────────
 data = GameData()
 health_mgr = HealthManager(data)
 housing_mgr = HousingManager(data)
 edu_mgr = EducationManager(data)
 social_mgr = SocialManager(data)
+achievements_mgr = AchievementsManager(data, getattr(data, 'achievements_unlocked', []))
+data.achievements_manager = achievements_mgr
+leaderboard_mgr = Leaderboard(os.path.join(SAVE_DIR, 'leaderboard.json'))
 tick_count = 0
-
-SAVE_DIR = os.path.join(os.path.dirname(__file__), "saves")
-os.makedirs(SAVE_DIR, exist_ok=True)
 
 
 def _get_full_state() -> dict:
@@ -186,6 +191,11 @@ def advance_day():
         mined = hashrate * 0.01
         data.btc_balance += mined
         events.append(f"BTC 挖礦 +{mined:.4f}")
+
+    # Check achievements
+    newly = achievements_mgr.check_achievements()
+    for a in newly:
+        events.append(f"\u2b50 成就解鎖: {a.name}")
 
     data._recent_events = events[-10:]
     return {"day": data.days, "events": events, "state": _get_full_state()}
@@ -408,6 +418,115 @@ def social_gift(target: str = "朋友"):
 def social_volunteer():
     msg = social_mgr.attend_event("volunteer")
     return {"message": msg, "state": _get_full_state()}
+
+
+# ── Achievements ────────────────────────────────────────────────────
+@app.get("/api/achievements")
+def get_achievements():
+    # Check for newly unlocked achievements
+    newly_unlocked = achievements_mgr.check_achievements()
+    all_achievements = []
+    for ach in achievements_mgr.get_all():
+        all_achievements.append({
+            "key": ach.key,
+            "name": ach.name,
+            "description": ach.description,
+            "category": ach.category,
+            "unlocked": ach.unlocked,
+        })
+    return {
+        "achievements": all_achievements,
+        "newly_unlocked": [a.name for a in newly_unlocked],
+    }
+
+
+# ── Leaderboard ─────────────────────────────────────────────────────
+@app.get("/api/leaderboard")
+def get_leaderboard():
+    top = leaderboard_mgr.get_top()
+    return {"leaderboard": top[:10]}
+
+class LeaderboardReq(BaseModel):
+    username: str
+
+@app.post("/api/leaderboard/submit")
+def submit_leaderboard(req: LeaderboardReq):
+    leaderboard_mgr.add_record(req.username, data.total_assets(), data.days)
+    return {"message": f"已提交 {req.username} 的成績", "state": _get_full_state()}
+
+
+# ── Slot Machine ────────────────────────────────────────────────────
+SLOT_MACHINES = [
+    {"id": "high_risk", "name": "高風險機", "cost": 100,
+     "rates": {"777": 200, "triple": 40, "double": 8, "other": -1}},
+    {"id": "steady", "name": "穩健機", "cost": 50,
+     "rates": {"777": 50, "triple": 10, "double": 3, "other": -1}},
+]
+
+class SlotSpinReq(BaseModel):
+    machine_id: str = "steady"
+    bet: int = 50
+
+@app.get("/api/slot/machines")
+def slot_machines():
+    return {"machines": [{"id": m["id"], "name": m["name"], "cost": m["cost"], "rates": m["rates"]} for m in SLOT_MACHINES]}
+
+@app.post("/api/slot/spin")
+def slot_spin(req: SlotSpinReq):
+    machine = next((m for m in SLOT_MACHINES if m["id"] == req.machine_id), None)
+    if not machine:
+        raise HTTPException(400, "未知機台")
+    if req.bet <= 0:
+        raise HTTPException(400, "賭注必須大於 0")
+    total_cost = machine["cost"] + req.bet
+    if data.cash < total_cost:
+        raise HTTPException(400, f"現金不足 (需要 ${total_cost})")
+
+    # Deduct cost + bet
+    data.cash -= total_cost
+
+    # Spin: 3 reels, numbers 1-7
+    results = [random.randint(1, 7) for _ in range(3)]
+
+    # Determine multiplier
+    rates = machine["rates"]
+    if results == [7, 7, 7]:
+        multiplier = rates["777"]
+    elif results[0] == results[1] == results[2]:
+        multiplier = rates["triple"]
+    elif results[0] == results[1] or results[1] == results[2] or results[0] == results[2]:
+        multiplier = rates["double"]
+    else:
+        multiplier = rates["other"]
+
+    winnings = int(req.bet * multiplier)
+    data.last_slot_win = winnings
+
+    # Track streak and total
+    if not hasattr(data, "slot_total_win"):
+        data.slot_total_win = 0
+    if not hasattr(data, "slot_win_streak"):
+        data.slot_win_streak = 0
+
+    if winnings > 0:
+        data.slot_total_win += winnings
+        data.slot_win_streak += 1
+        data.cash += winnings
+    else:
+        data.slot_win_streak = 0
+
+    # Check achievements after spin
+    newly = achievements_mgr.check_achievements()
+
+    return {
+        "results": results,
+        "multiplier": multiplier,
+        "winnings": winnings,
+        "cost": total_cost,
+        "message": f"結果: {results[0]} {results[1]} {results[2]} | {multiplier:+.1f}x | {'+' if winnings >= 0 else ''}{winnings}",
+        "newly_unlocked": [a.name for a in newly],
+        "state": _get_full_state(),
+    }
 
 
 # ── Save / Load ──────────────────────────────────────────────────────
