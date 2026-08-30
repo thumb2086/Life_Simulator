@@ -427,7 +427,8 @@ function create() {
     // Body
     g.fillStyle(0x3498db, 1);
     g.fillRoundedRect(-8, -4 + bobY, 16, 16, 4);
-n    // Head
+
+    // Head
     g.fillStyle(0xf5cba7, 1);
     g.fillCircle(0, -10 + bobY, 9);
 
@@ -451,7 +452,8 @@ function create() {
       g.fillCircle(4, -10 + bobY, 1.5);
     }
 
-    // Armsn    g.fillStyle(0xf5cba7, 1);
+    // Arms
+    g.fillStyle(0xf5cba7, 1);
     if (frame % 2 === 1) {
       g.fillCircle(-10, 2 + bobY, 3);
       g.fillCircle(10, 0 + bobY, 3);
