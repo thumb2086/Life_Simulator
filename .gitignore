@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+electron/node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+build/
+
+# Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Game saves (keep leaderboard.json)
+saves/*.json
+!saves/leaderboard.json
+
+# Logs
+*.log
+server.log
+
+# Temp files
+*.tmp
+*.bak

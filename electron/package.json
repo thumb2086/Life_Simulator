@@ -1,0 +1,94 @@
+{
+  "name": "life-simulator",
+  "version": "1.0.0",
+  "description": "Life Simulator — 個人生命模擬遊戲",
+  "main": "main.js",
+  "author": "thumb2086",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "electron . --dev",
+    "build": "electron-builder build --win",
+    "build:win": "electron-builder build --win",
+    "build:mac": "electron-builder build --mac",
+    "build:linux": "electron-builder build --linux"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.life-simulator.app",
+    "productName": "Life Simulator",
+    "directories": {
+      "output": "../dist-electron"
+    },
+    "files": [
+      "main.js",
+      "../api_server.py",
+      "../game_data.py",
+        "../health_manager.py",
+        "../housing_manager.py",
+        "../education_manager.py",
+        "../social_manager.py",
+        "../achievements.py",
+        "../leaderboard.py",
+        "../events.py",
+        "../slot_machine.py",
+        "../stock_manager.py",
+        "../crypto_manager.py",
+        "../ui_sections.py",
+        "../ui_manager.py",
+        "../theme_manager.py",
+        "../transaction_manager.py",
+        "../bank_game.py",
+        "../main.py",
+        "../web/**/*",
+        "../saves/**/*",
+        "../requirements-desktop.txt",
+        "!../dist/**",
+        "!../dist-electron/**",
+        "!../__pycache__/**",
+        "!../build/**",
+        "!../modules/**",
+        "!../legacy/**",
+        "!../server/**",
+        "!../api/**",
+        "!../.git/**",
+        "!../test_*.py"
+    ],
+    "extraResources": [],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["zh_TW", "en_US"],
+      "language": "2052",
+      "shortcutName": "Life Simulator"
+    },
+    "portable": {
+      "artifactName": "LifeSimulator-${version}-portable.exe"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Game"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.games"
+    }
+  }
+}
